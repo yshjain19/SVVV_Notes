@@ -1,0 +1,396 @@
+<% layout('layouts/boilerplate') %>
+<section class="py-4" style="background: #F9FAFB; min-height: calc(100vh - 120px);">
+  <div class="container">
+    
+    <!-- Dashboard Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <span class="section-kicker">ANALYTICS & CONTROL</span>
+        <h1 class="mb-0 fw-bold" style="font-size: 1.85rem; color: #111827;">Admin Dashboard</h1>
+      </div>
+    </div>
+
+    <!-- Section: Core Metrics -->
+    <h3 class="fw-bold mb-3" style="font-size: 1.1rem; color: #1F2937;">Core Metrics</h3>
+    <div class="row g-4 mb-4">
+      <!-- Total Users -->
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Total Users</span>
+            <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-people-fill"></i></span>
+          </div>
+          <h2 class="mb-2 fw-bold" style="font-size: 2.2rem; color: #111827;"><%= totalUsers %></h2>
+          <span class="fw-semibold text-success" style="font-size: 0.78rem;">+<%= usersDelta %> in last 7 days</span>
+        </div>
+      </div>
+      <!-- Total Notes -->
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Total Notes</span>
+            <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-file-earmark-text-fill"></i></span>
+          </div>
+          <h2 class="mb-2 fw-bold" style="font-size: 2.2rem; color: #111827;"><%= totalNotes %></h2>
+          <span class="fw-semibold text-success" style="font-size: 0.78rem;">+<%= notesDelta %> in last 7 days</span>
+        </div>
+      </div>
+      <!-- Total Downloads -->
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Total Downloads</span>
+            <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-download"></i></span>
+          </div>
+          <h2 class="mb-2 fw-bold" style="font-size: 2.2rem; color: #111827;"><%= totalDownloads %></h2>
+          <span class="fw-semibold text-success" style="font-size: 0.78rem;">+<%= downloadsDelta %> in last 7 days</span>
+        </div>
+      </div>
+      <!-- Pending Notes -->
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Pending Notes</span>
+            <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-list-task"></i></span>
+          </div>
+          <h2 class="mb-2 fw-bold <%= pendingNotes > 0 ? 'text-danger' : '' %>" style="font-size: 2.2rem;"><%= pendingNotes %></h2>
+          <span class="fw-semibold text-secondary" style="font-size: 0.78rem; color: #9CA3AF;">Awaiting review</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Traffic Analysis -->
+    <h3 class="fw-bold mb-3" style="font-size: 1.1rem; color: #1F2937;">Traffic Analysis</h3>
+    <div class="row g-4 mb-5">
+      <!-- Unique Downloads -->
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Unique Downloads</span>
+            <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-person-check-fill"></i></span>
+          </div>
+          <h2 class="mb-1 fw-bold" style="font-size: 2.2rem; color: #111827;">
+            <%= uniqueDownloads %> <span style="font-size: 1rem; font-weight: normal; color: #9CA3AF;">(out of <%= totalDownloads %>)</span>
+          </h2>
+        </div>
+      </div>
+      <!-- Unique Sessions -->
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Unique Sessions</span>
+            <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-cursor-fill"></i></span>
+          </div>
+          <h2 class="mb-1 fw-bold" style="font-size: 2.2rem; color: #111827;"><%= uniqueSessions %></h2>
+        </div>
+      </div>
+      <!-- Unique IPs -->
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Unique IPs</span>
+            <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-grid-3x3-gap-fill"></i></span>
+          </div>
+          <h2 class="mb-1 fw-bold" style="font-size: 2.2rem; color: #111827;"><%= uniqueIps %></h2>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row: Top Notes & Verification Chart -->
+    <div class="row g-4 mb-5">
+      <!-- Top 5 Most Downloaded Notes (col-lg-8) -->
+      <div class="col-lg-8">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <h3 class="fw-bold mb-4" style="font-size: 1.15rem; color: #1F2937;">Top 5 Most Downloaded Notes</h3>
+          <div class="table-responsive">
+            <table class="table align-middle" style="font-size: 0.9rem;">
+              <thead class="table-light">
+                <tr style="color: #6B7280; font-size: 0.8rem; text-transform: uppercase; font-weight: 700;">
+                  <th>Title</th>
+                  <th>Downloads</th>
+                  <th>Course</th>
+                </tr>
+              </thead>
+              <tbody style="font-weight: 500;">
+                <% if (topNotes.length) { %>
+                  <% topNotes.forEach(note => { %>
+                    <tr style="border-bottom: 1px solid #F3F4F6;">
+                      <td style="color: #111827;"><%= note.title %></td>
+                      <td style="color: #4B5563;"><%= note.downloadCount %></td>
+                      <td style="color: #4B5563;"><%= note.course || 'B.Tech CSE' %></td>
+                    </tr>
+                  <% }) %>
+                <% } else { %>
+                  <tr>
+                    <td colspan="3" class="text-muted text-center py-4">No notes found with download counts yet.</td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Doughnut Chart: Note Verification (col-lg-4) -->
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
+          <h3 class="fw-bold mb-4" style="font-size: 1.15rem; color: #1F2937;">Note Verification</h3>
+          <div style="position: relative; height: 180px; margin: 0 auto 20px;">
+            <canvas id="verificationChart" 
+                    data-verified="<%= verifiedCount %>" 
+                    data-unverified="<%= unverifiedCount %>" 
+                    style="display: block; width: 100%; height: 100%;"></canvas>
+          </div>
+          <!-- Custom legends -->
+          <div class="d-flex justify-content-center gap-4 mt-2">
+            <div class="d-flex align-items-center gap-2">
+              <span style="display: inline-block; width: 20px; height: 8px; background: #4F46E5; border-radius: 4px;"></span>
+              <span style="font-size: 0.8rem; color: #4B5563; font-weight: 600;">Verified (<%= verifiedCount %>)</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span style="display: inline-block; width: 20px; height: 8px; background: #E5E7EB; border-radius: 4px;"></span>
+              <span style="font-size: 0.8rem; color: #4B5563; font-weight: 600;">Unverified (<%= unverifiedCount %>)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Student & Moderator Control Panel -->
+    <h3 class="fw-bold mb-3" style="font-size: 1.1rem; color: #1F2937;">Student Directory & Moderation</h3>
+    <div class="row g-4">
+      <!-- Left Column: Search & User list -->
+      <div class="col-lg-5">
+        <div class="card border-0 shadow-sm p-4" style="border-radius: 12px; background: #ffffff; min-height: 480px;">
+          <h3 class="fw-bold mb-3" style="font-size: 1.05rem; color: #1F2937;">Student Directory</h3>
+          <div class="input-group mb-3">
+            <span class="input-group-text bg-white border-end-0 text-secondary"><i class="bi bi-search"></i></span>
+            <input type="text" id="userSearchInput" class="form-control border-start-0" placeholder="Search by name/username..." />
+          </div>
+          <div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">
+            <div class="list-group list-group-flush" id="usersListGroup">
+              <% if (users.length) { %>
+                <% users.forEach(u => { %>
+                  <a href="/admin/dashboard?user=<%= u._id %>" 
+                     class="list-group-item list-group-item-action d-flex justify-content-between align-items-center border-0 px-2 py-3 rounded-2 mb-2 user-list-item <%= selectedUser && selectedUser._id.toString() === u._id.toString() ? 'bg-primary-light text-primary fw-bold' : '' %>"
+                     data-search-term="<%= (u.username + ' ' + (u.fullName || '')).toLowerCase() %>"
+                     style="transition: background var(--transition);">
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="avatar-sm" style="width: 28px; height: 28px; font-size: 0.75rem; background: <%= selectedUser && selectedUser._id.toString() === u._id.toString() ? 'var(--primary)' : 'var(--bg)' %>; color: <%= selectedUser && selectedUser._id.toString() === u._id.toString() ? '#fff' : 'var(--text-primary)' %>;">
+                        <%= (u.username || 'U').charAt(0).toUpperCase() %>
+                      </span>
+                      <div>
+                        <p class="mb-0 text-dark" style="font-size: 0.88rem;"><%= u.fullName || u.username %></p>
+                        <% if (u.fullName) { %>
+                          <span class="text-secondary text-muted" style="font-size: 0.75rem; font-weight: normal;">@<%= u.username %></span>
+                        <% } %>
+                      </div>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge rounded-pill bg-light text-secondary border px-2 py-1" style="font-size: 0.7rem;"><%= u.notesCount %> notes</span>
+                      <% if (u.isAdmin) { %>
+                        <span class="badge bg-primary ms-1" style="font-size: 0.65rem;">Admin</span>
+                      <% } %>
+                    </div>
+                  </a>
+                <% }) %>
+              <% } else { %>
+                <p class="text-muted text-center py-4">No users registered.</p>
+              <% } %>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Detail Pane -->
+      <div class="col-lg-7">
+        <div class="card border-0 shadow-sm p-4" style="border-radius: 12px; background: #ffffff; min-height: 480px;">
+          <% if (!selectedUser) { %>
+            <div class="d-flex flex-column align-items-center justify-content-center text-center my-auto py-5">
+              <div class="text-secondary mb-3" style="font-size: 3rem; opacity: 0.4;"><i class="bi bi-person-bounding-box"></i></div>
+              <h4 class="fw-bold text-secondary">No Student Selected</h4>
+              <p class="text-muted" style="max-width: 320px; font-size: 0.88rem;">Select a registered student from the left directory to view full statistics, credentials, role settings, and shared files.</p>
+            </div>
+          <% } else { %>
+            <div class="d-flex flex-column h-100">
+              <!-- Header details -->
+              <div class="d-flex flex-wrap align-items-center gap-3 border-bottom pb-4 mb-4">
+                <div class="avatar-lg" style="width: 52px; height: 52px; border-radius: 12px; background: var(--primary-light); color: var(--primary); display: grid; place-items: center; font-size: 1.5rem; font-weight: 800;">
+                  <%= (selectedUser.username || 'S').charAt(0).toUpperCase() %>
+                </div>
+                <div>
+                  <h2 class="mb-0 fw-bold h4 text-dark"><%= selectedUser.fullName || selectedUser.username %></h2>
+                  <div class="d-flex gap-2 align-items-center mt-1">
+                    <span class="text-muted" style="font-size: 0.8rem;">@<%= selectedUser.username %></span>
+                    <span class="badge <%= selectedUser.isAdmin ? 'bg-primary' : 'bg-secondary' %>" style="font-size: 0.65rem;">
+                      <%= selectedUser.isAdmin ? 'Admin' : 'Student' %>
+                    </span>
+                  </div>
+                </div>
+                <div class="ms-sm-auto d-flex gap-2 mt-3 mt-sm-0">
+                  <form action="/admin/users/<%= selectedUser._id %>/toggle-admin" method="POST">
+                    <button class="btn btn-sm btn-outline-primary">
+                      <%= selectedUser.isAdmin ? 'Revoke Admin' : 'Make Admin' %>
+                    </button>
+                  </form>
+                  <form action="/admin/users/<%= selectedUser._id %>/delete" method="POST" data-confirm="Are you sure you want to delete user account '<%= selectedUser.username %>' and all of their uploaded notes permanently? This cannot be undone.">
+                    <button class="btn btn-sm btn-outline-danger">
+                      Delete Account
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+              <!-- General details -->
+              <h4 class="fw-bold mb-3 text-dark" style="font-size: 0.95rem;">Student Details</h4>
+              <div class="row g-3 mb-4 bg-light rounded-3 p-3 mx-0">
+                <div class="col-sm-6">
+                  <span class="d-block text-secondary" style="font-size: 0.75rem;">Email Address</span>
+                  <strong style="font-size: 0.88rem; color: #1F2937;"><%= selectedUser.email %></strong>
+                </div>
+                <div class="col-sm-6">
+                  <span class="d-block text-secondary" style="font-size: 0.75rem;">Course & Branch</span>
+                  <strong style="font-size: 0.88rem; color: #1F2937;"><%= selectedUser.course || 'B.Tech' %> · <%= selectedUser.branch || 'CSE' %></strong>
+                </div>
+                <div class="col-sm-6">
+                  <span class="d-block text-secondary" style="font-size: 0.75rem;">Current Semester</span>
+                  <strong style="font-size: 0.88rem; color: #1F2937;"><%= selectedUser.semester ? 'Semester ' + selectedUser.semester : 'Not Specified' %></strong>
+                </div>
+                <div class="col-sm-6">
+                  <span class="d-block text-secondary" style="font-size: 0.75rem;">Joined Date</span>
+                  <strong style="font-size: 0.88rem; color: #1F2937;">
+                    <%= new Date(selectedUser.createdAt).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) %>
+                  </strong>
+                </div>
+              </div>
+
+              <!-- Note list details -->
+              <h4 class="fw-bold mb-3 text-dark" style="font-size: 0.95rem;">Contributions (<%= selectedUserNotes.length %> Uploads)</h4>
+              <div style="max-height: 220px; overflow-y: auto;">
+                <% if (selectedUserNotes.length) { %>
+                  <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                      <thead class="table-light sticky-top">
+                        <tr style="font-size: 0.75rem; color: #6B7280; text-transform: uppercase;">
+                          <th>Title</th>
+                          <th>Subject</th>
+                          <th class="text-center">Downloads</th>
+                          <th class="text-center">Verification</th>
+                          <th class="text-end">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <% selectedUserNotes.forEach(note => { %>
+                          <tr>
+                            <td>
+                              <a href="/notes/<%= note._id %>" target="_blank" class="fw-bold text-decoration-none text-dark d-block text-truncate" style="max-width: 120px;" title="<%= note.title %>">
+                                <%= note.title %>
+                              </a>
+                            </td>
+                            <td><%= note.subject?.name || note.subject %></td>
+                            <td class="text-center"><%= note.downloadCount %></td>
+                            <td class="text-center">
+                              <span class="badge <%= note.isVerified ? 'bg-success' : 'bg-warning text-dark' %>" style="font-size: 0.65rem;">
+                                <%= note.isVerified ? 'Verified' : 'Pending' %>
+                              </span>
+                            </td>
+                            <td class="text-end">
+                              <div class="d-flex justify-content-end gap-2">
+                                <form action="/admin/notes/<%= note._id %>/toggle-verify" method="POST">
+                                  <button class="btn btn-xs btn-outline-secondary" style="font-size: 0.7rem; padding: 2px 6px;" title="<%= note.isVerified ? 'Unverify' : 'Verify' %>">
+                                    <i class="bi <%= note.isVerified ? 'bi-x-circle' : 'bi-check-circle' %>"></i>
+                                  </button>
+                                </form>
+                                <form action="/admin/notes/<%= note._id %>/delete" method="POST" data-confirm="Are you sure you want to delete note '<%= note.title %>' permanently?">
+                                  <button class="btn btn-xs btn-outline-danger" style="font-size: 0.7rem; padding: 2px 6px;" title="Delete Note">
+                                    <i class="bi bi-trash"></i>
+                                  </button>
+                                </form>
+                              </div>
+                            </td>
+                          </tr>
+                        <% }) %>
+                      </tbody>
+                    </table>
+                  </div>
+                <% } else { %>
+                  <p class="text-muted text-center py-3 bg-light rounded-3 mb-0" style="font-size: 0.85rem;">This student has not shared any notes yet.</p>
+                <% } %>
+              </div>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Include Chart.js and search functionality -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initialize Doughnut Chart for Verification Status
+    const ctx = document.getElementById('verificationChart');
+    if (ctx) {
+      const verified = parseInt(ctx.dataset.verified || '0', 10);
+      const unverified = parseInt(ctx.dataset.unverified || '0', 10);
+      const hasData = (verified + unverified) > 0;
+
+      new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: hasData ? ['Verified', 'Unverified'] : ['No Notes'],
+          datasets: [{
+            data: hasData ? [verified, unverified] : [1],
+            backgroundColor: hasData ? ['#4F46E5', '#E5E7EB'] : ['#E5E7EB'],
+            borderWidth: 0,
+            hoverOffset: hasData ? 4 : 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              enabled: hasData,
+              callbacks: {
+                label: function(context) {
+                  let label = context.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.parsed !== undefined) {
+                    label += context.parsed;
+                  }
+                  return label;
+                }
+              }
+            }
+          },
+          cutout: '75%'
+        }
+      });
+    }
+
+    // 2. User Directory Search Filtering
+    const searchInput = document.getElementById('userSearchInput');
+    const items = document.querySelectorAll('.user-list-item');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        items.forEach(item => {
+          const searchContent = item.getAttribute('data-search-term');
+          if (searchContent && searchContent.includes(query)) {
+            item.style.setProperty('display', 'flex', 'important');
+          } else {
+            item.style.setProperty('display', 'none', 'important');
+          }
+        });
+      });
+    }
+  });
+</script>

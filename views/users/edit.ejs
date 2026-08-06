@@ -1,0 +1,93 @@
+<% layout('layouts/boilerplate') %>
+<section class="form-shell">
+  <div class="container">
+    <div class="form-heading">
+      <a href="/users/<%= user._id %>" class="back-link"
+        ><i class="bi bi-arrow-left"></i> Back to profile</a
+      ><span class="section-kicker">SETTINGS</span>
+      <h1>Edit Student Profile</h1>
+      <p>
+        Update your SVVV student profile information.
+      </p>
+    </div>
+    <form
+      class="upload-card needs-validation"
+      action="/users/<%= user._id %>?_method=PUT"
+      method="POST"
+      novalidate
+    >
+      <div class="row g-4">
+        <div class="col-md-6">
+          <label class="form-label">Full Name</label>
+          <input
+            class="form-control"
+            name="user[fullName]"
+            value="<%= user.fullName || '' %>"
+            required
+            placeholder="e.g. Yash Jain"
+          />
+          <div class="invalid-feedback">Please enter your full name.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Email Address</label>
+          <input
+            type="email"
+            class="form-control"
+            name="user[email]"
+            value="<%= user.email || '' %>"
+            required
+            placeholder="e.g. student@gmail.com"
+          />
+          <div class="invalid-feedback">Please enter a valid email.</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Course</label>
+          <input
+            class="form-control"
+            name="user[course]"
+            value="<%= user.course || '' %>"
+            required
+            placeholder="e.g. B.Tech"
+          />
+          <div class="invalid-feedback">Please enter your course.</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Branch</label>
+          <input
+            class="form-control"
+            name="user[branch]"
+            value="<%= user.branch || '' %>"
+            required
+            placeholder="e.g. Computer Science"
+          />
+          <div class="invalid-feedback">Please enter your branch.</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Semester</label>
+          <select class="form-select" name="user[semester]" required>
+            <option value="">Choose semester</option>
+            <% for(let i = 1; i <= 8; i++) { %>
+            <option value="<%= i %>" <%= user.semester === i ? 'selected' : '' %>>Semester <%= i %></option>
+            <% } %>
+          </select>
+          <div class="invalid-feedback">Please choose your semester.</div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Gender</label>
+          <select class="form-select" name="user[gender]" required>
+            <option value="">Choose gender</option>
+            <option value="Male" <%= user.gender === 'Male' ? 'selected' : '' %>>Male</option>
+            <option value="Female" <%= user.gender === 'Female' ? 'selected' : '' %>>Female</option>
+          </select>
+          <div class="invalid-feedback">Please select your gender.</div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-end gap-3 mt-4">
+        <a href="/users/<%= user._id %>" class="btn btn-light">Cancel</a>
+        <button class="btn btn-primary px-4">
+          Save Changes
+        </button>
+      </div>
+    </form>
+  </div>
+</section>

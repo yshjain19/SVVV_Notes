@@ -1,0 +1,106 @@
+<% layout('layouts/boilerplate') %>
+<section class="auth-shell">
+  <div class="auth-visual">
+    <div>
+      <img src="/images/logo.svg" alt="SVVV_Notes" height="52" style="margin-bottom:24px;filter:brightness(0) invert(1);" />
+      <h1>Share knowledge.<br />Grow together.</h1>
+      <p>
+        A better, calmer way for the CSE student community to prepare and
+        collaborate.
+      </p>
+    </div>
+    <div class="auth-quote">
+      <i class="bi bi-stars"></i>
+      <p>
+        Every useful note can make a difference to someone’s learning journey.
+      </p>
+      <span>SVVV_Notes community</span>
+    </div>
+  </div>
+  <div class="auth-form-side">
+    <form
+      class="auth-form needs-validation"
+      action="/register"
+      method="POST"
+      novalidate
+    >
+      <a class="navbar-brand d-lg-none mb-4 d-inline-flex align-items-center gap-2" href="/"
+        ><span class="brand-mark"
+          ><img src="/images/logo-icon.svg" alt="SVVV_Notes logo" width="17" height="17" style="display:block;" />
+        </span>
+        SVVV_Notes</a
+      >
+
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="form-label">Username</label
+          ><input
+            class="form-control"
+            name="username"
+            required
+            placeholder="Username"
+          />
+          <div class="invalid-feedback">Please add a username.</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Full Name</label
+          ><input
+            class="form-control"
+            name="fullName"
+            required
+            placeholder="Full Name"
+          />
+          <div class="invalid-feedback">Please enter your full name.</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Email address</label
+          ><input
+            class="form-control"
+            type="email"
+            name="email"
+            required
+            placeholder="Email address"
+          />
+          <div class="invalid-feedback">Please enter a valid email address.</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Course</label
+          ><select class="form-select" name="course" required>
+            <option value="">Course</option>
+            <option>Computer Science</option>
+            <option>Information Technology</option>
+            <option>AI & Data Science</option>
+          </select>
+          <div class="invalid-feedback">Please select a course.</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label">Gender</label>
+          <select class="form-select" name="gender" required>
+            <option value="">Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+          </select>
+          <div class="invalid-feedback">Please select your gender.</div>
+        </div>
+        <input type="hidden" name="semester" value="1" />
+        <div class="col-12">
+          <label class="form-label">Password</label
+          ><input
+            class="form-control"
+            type="password"
+            name="password"
+            required
+            pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}"
+            placeholder="Password (Min 6 chars, 1 Upper, 1 Number)"
+          />
+          <div class="invalid-feedback">Password must be at least 6 characters, and contain at least one uppercase letter and one number.</div>
+        </div>
+      </div>
+      <button class="btn btn-orange w-100 mt-4 py-2">
+        Create Account
+      </button>
+      <p class="auth-switch">Already a member? <a href="/login">Sign in</a></p>
+    </form>
+  </div>
+</section>
+

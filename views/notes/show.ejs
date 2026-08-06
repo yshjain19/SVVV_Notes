@@ -1,0 +1,90 @@
+<% layout('layouts/boilerplate') %>
+<section class="detail-wrap">
+  <div class="container">
+    <a class="back-link mb-4 d-inline-flex" href="/notes"
+      ><i class="bi bi-arrow-left"></i> All notes</a
+    >
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="pdf-preview">
+          <div class="pdf-preview-top">
+            <span
+              ><i class="bi bi-file-earmark-pdf-fill text-danger me-2"></i
+              ><%=note.title%>.pdf</span
+            ><a
+              href="<%=pdfUrl || note.fileUrl%>"
+              target="_blank"
+              class="btn btn-sm btn-light"
+              >Open PDF <i class="bi bi-box-arrow-up-right ms-1"></i
+            ></a>
+          </div>
+          <iframe
+            title="<%=note.title%>"
+            src="<%=pdfUrl || note.fileUrl%>#toolbar=0"
+            loading="lazy"
+          ></iframe>
+          <div class="pdf-fallback">
+            <i class="bi bi-file-earmark-pdf"></i>
+            <p>PDF preview unavailable</p>
+            <a href="<%=pdfUrl || note.fileUrl%>" target="_blank" class="btn btn-primary"
+              >Open PDF</a
+            >
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <aside class="detail-card">
+          <span class="tag"><%=note.subject && note.subject.name ? note.subject.name : note.subject%></span>
+          <h1><%=note.title%></h1>
+          <p class="detail-description"><%=note.description%></p>
+          <div class="meta-list">
+            <% if(note.course){ %>
+            <div>
+              <i class="bi bi-book"></i><span>Course</span
+              ><strong><%=note.course%></strong>
+            </div>
+            <% } %>
+            <div>
+              <i class="bi bi-layers"></i><span>Semester</span
+              ><strong><%=note.semester%></strong>
+            </div>
+            <div>
+              <i class="bi bi-person"></i><span>Shared by</span
+              ><a href="/users/<%=note.uploadedBy ? note.uploadedBy._id : ''%>"
+                ><%=note.uploadedBy ? note.uploadedBy.username : 'Unknown'%></a
+              >
+            </div>
+            <div>
+              <i class="bi bi-calendar3"></i><span>Added</span
+              ><strong
+                ><%=new
+                Date(note.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})%></strong
+              >
+            </div>
+          </div>
+          <a
+            href="/notes/<%=note._id%>/download"
+            download
+            class="btn btn-primary w-100 py-2"
+            ><i class="bi bi-download me-2"></i>Download PDF</a
+          ><%if(currentUser && note.uploadedBy && note.uploadedBy._id.equals(currentUser._id)){%>
+          <div class="owner-actions">
+            <a class="btn btn-light" href="/notes/<%=note._id%>/edit"
+              ><i class="bi bi-pencil me-1"></i>Edit</a
+            >
+            <form
+              action="/notes/<%=note._id%>?_method=DELETE"
+              method="POST"
+              data-confirm="Delete this note permanently?"
+            >
+              <button class="btn btn-link text-danger text-decoration-none">
+                <i class="bi bi-trash me-1"></i>Delete
+              </button>
+            </form>
+          </div>
+          <%}%>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>

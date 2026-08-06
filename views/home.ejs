@@ -1,0 +1,305 @@
+<% layout('layouts/boilerplate') %>
+
+<style>
+  /* Custom page-specific style overrides matching the original light/glassmorphic theme */
+  .step-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition);
+  }
+  .step-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary);
+  }
+  .step-num {
+    background: var(--primary-light);
+    color: var(--primary);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 auto;
+    border: 2px solid #c5d9ff;
+  }
+  
+  .faq-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition);
+  }
+  .faq-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+  .faq-card h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .faq-card p {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+  }
+</style>
+
+<!-- Hero Section -->
+<section class="hero">
+  <div class="container position-relative">
+    <div class="hero-orb orb-one"></div>
+    <div class="hero-orb orb-two"></div>
+    <div class="row align-items-center g-5">
+      <div class="col-lg-7">
+        <div class="eyebrow"><span></span>Built by students, for students</div>
+        <h1>Your college notes,<br /><span>all in one place.</span></h1>
+        <p class="hero-copy">
+          Find clear, semester-wise study notes shared by your SVVV community.
+          Learn together, one resource at a time.
+        </p>
+        <form class="hero-search shadow-lg" action="/notes" method="GET">
+          <i class="bi bi-search"></i>
+          <input
+            name="q"
+            aria-label="Search notes"
+            placeholder="Search Data Structures, DBMS, Java..."
+          /><button class="btn btn-primary" type="submit">Search notes</button>
+        </form>
+        <div class="d-flex flex-wrap gap-3 mt-4">
+          <a class="btn btn-primary btn-lg px-4" href="/notes"
+            >Explore notes <i class="bi bi-arrow-right ms-2"></i></a
+          ><a
+            class="btn btn-link text-dark text-decoration-none fw-semibold"
+            href="/notes/new"
+            ><i class="bi bi-cloud-arrow-up me-2"></i>Share a note</a
+          >
+        </div>
+        <div class="hero-trust">
+          <span><i class="bi bi-check2-circle"></i> Free for SVVV students</span>
+          <span><i class="bi bi-check2-circle"></i> PDF resources only</span>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="hero-visual">
+          <div class="floating-card study-card">
+            <div class="study-icon"><i class="bi bi-stars"></i></div>
+            <strong>Study smarter</strong>
+            <small>Everything organized for you</small>
+          </div>
+          <div class="notebook">
+            <div class="notebook-top">
+              <span class="mini-logo"
+                ><i class="bi bi-journal-bookmark-fill"></i></span
+              ><span>My study space</span>
+              <i class="bi bi-three-dots ms-auto"></i>
+            </div>
+            <h2>Computer<br />Networks</h2>
+            <div class="progress-label">
+              <span>Progress</span><span>72%</span>
+            </div>
+            <div class="progress">
+              <div class="progress-bar" style="width: 72%"></div>
+            </div>
+            <div class="notebook-line">
+              <i class="bi bi-file-earmark-text"></i>
+              <span>OSI model overview</span>
+              <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="notebook-line">
+              <i class="bi bi-file-earmark-text"></i>
+              <span>TCP/IP fundamentals</span>
+              <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div class="notebook-line active">
+              <i class="bi bi-file-earmark-text"></i>
+              <span>Network layer notes</span>
+            </div>
+          </div>
+          <div class="floating-card peer-card">
+            <span class="avatar-stack"><b>R</b><b>S</b><b>A</b></span>
+            <div>
+              <strong>Join 600+ learners</strong>
+              <small>Sharing study resources</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Core Features Section -->
+<section class="section-pad">
+  <div class="container">
+    <div class="section-heading text-center">
+      <span class="section-kicker">WHY SVVV_Notes</span>
+      <h2>A simpler way to share<br />what you know.</h2>
+      <p>
+        Everything you need to find, organize and contribute better study
+        material.
+      </p>
+    </div>
+    <div class="row g-4 mt-2">
+      <% const features = [
+        { i: 'cloud-arrow-up', t: 'Upload PDF notes', d: 'Turn your well-organized notes into a resource the whole class can use.' },
+        { i: 'lightning-charge', t: 'Find it fast', d: 'Search subjects and jump straight to the notes you actually need.' },
+        { i: 'collection', t: 'Semester-wise library', d: 'A clean, growing library that stays organized around your curriculum.' },
+        { i: 'shield-check', t: 'Student community', d: 'A focused, secure platform designed exclusively around learning.' }
+      ]; features.forEach(f => { %>
+      <div class="col-md-6 col-lg-3">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="bi bi-<%= f.i %>"></i></div>
+          <h3><%= f.t %></h3>
+          <p><%= f.d %></p>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- 3 Steps Process Section -->
+<section class="section-pad section-tint">
+  <div class="container">
+    <div class="section-heading text-center mb-5">
+      <span class="section-kicker">GET STARTED</span>
+      <h2>Revise Smarter in 3 Simple Steps</h2>
+      <p>Streamlining the hectic process of acquiring correct revision material.</p>
+    </div>
+    <div class="row g-4">
+      <!-- Step 1 -->
+      <div class="col-md-4">
+        <div class="step-card h-100 p-5 text-center">
+          <div class="step-num mb-4">1</div>
+          <h3 class="h5 mb-3 font-semibold">1. Search & Filter</h3>
+          <p class="text-secondary small leading-relaxed">Search by subject name or filter by your current semester and course branch to find targeted study resources.</p>
+        </div>
+      </div>
+      <!-- Step 2 -->
+      <div class="col-md-4">
+        <div class="step-card h-100 p-5 text-center">
+          <div class="step-num mb-4">2</div>
+          <h3 class="h5 mb-3 font-semibold">2. Open & View</h3>
+          <p class="text-secondary small leading-relaxed">View PDFs inline instantly in your browser tab or download them for offline revision anytime before your exams.</p>
+        </div>
+      </div>
+      <!-- Step 3 -->
+      <div class="col-md-4">
+        <div class="step-card h-100 p-5 text-center">
+          <div class="step-num mb-4">3</div>
+          <h3 class="h5 mb-3 font-semibold">3. Share & Support</h3>
+          <p class="text-secondary small leading-relaxed">Upload notes, tutorials, or question banks you created to support classmates and help the database grow.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Recently Shared Notes Section -->
+<section class="section-pad">
+  <div class="container">
+    <div
+      class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4"
+    >
+      <div class="section-heading mb-0">
+        <span class="section-kicker">FRESH FROM THE COMMUNITY</span>
+        <h2>Recently shared notes</h2>
+      </div>
+      <a href="/notes" class="link-arrow"
+        >Browse all notes <i class="bi bi-arrow-right"></i
+      ></a>
+    </div>
+    <div class="row g-4">
+      <% if (latestNotes && latestNotes.length) { latestNotes.forEach(note => { %>
+      <div class="col-md-6 col-lg-4">
+        <%- include('partials/note-card', { note }) %>
+      </div>
+      <% }) } else { %>
+      <div class="empty-home">
+        <i class="bi bi-journal-plus"></i>
+        <h3>The library is ready for its first note.</h3>
+        <p>Be the first to help your batch.</p>
+        <a href="/notes/new" class="btn btn-primary">Upload a note</a>
+      </div>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<!-- Explore by Subject Section -->
+<section class="section-pad section-tint">
+  <div class="container">
+    <div class="section-heading text-center">
+      <span class="section-kicker">EXPLORE BY SUBJECT</span>
+      <h2>Your next study session<br />starts here.</h2>
+    </div>
+    <div class="subject-grid mt-4">
+      <% ['Data Structures','Operating Systems','DBMS','Computer Networks','Software Engineering','Web Development','Java','Python'].forEach((s, i) => { %><a
+        href="/notes?q=<%= s %>"
+        class="subject-pill"
+        ><span class="subject-icon s<%= i %>"
+          ><i
+            class="bi bi-<%= ['diagram-3','cpu','database','diagram-2','braces-asterisk','window-stack','cup-hot','terminal'][i] %>"
+          ></i></span
+        ><span><%= s %></span><i class="bi bi-arrow-up-right"></i></a
+      ><% }) %>
+    </div>
+  </div>
+</section>
+
+<!-- Frequently Asked Questions -->
+<section class="section-pad">
+  <div class="container" style="max-w: 800px; margin: 0 auto;">
+    <div class="section-heading text-center mb-5">
+      <span class="section-kicker">FAQ</span>
+      <h2>Frequently Asked Questions</h2>
+      <p>Everything you need to know about sharing and accessing notes.</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-12">
+        <div class="faq-card">
+          <h3 class="mb-2"><i class="bi bi-check-circle-fill text-success me-2"></i>Is SVVV_Notes free?</h3>
+          <p>Yes! The platform is 100% free. It is a student-built project aimed at making learning resources more accessible for everyone in our college.</p>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="faq-card">
+          <h3 class="mb-2"><i class="bi bi-cloud-arrow-up-fill text-primary me-2"></i>How do I upload notes?</h3>
+          <p>Create an account or log in, click the "Upload" link in the navbar, input the note title, specify the subject name, select your course branch and semester, and upload your PDF file.</p>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="faq-card">
+          <h3 class="mb-2"><i class="bi bi-shield-fill-check text-warning me-2"></i>Are notes verified?</h3>
+          <p>All notes undergo curation and peer review. Upvotes from other students help highlight high-quality, correct, and relevant resources.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA / Call to Action Section -->
+<section class="cta-section">
+  <div class="container">
+    <div class="cta-box">
+      <div>
+        <span class="section-kicker text-white-50">MAKE AN IMPACT</span>
+        <h2>Have notes that can help<br />someone else?</h2>
+        <p>
+          Share them with your student community and make revision season easier
+          for everyone.
+        </p>
+      </div>
+      <a href="/notes/new" class="btn btn-light btn-lg px-4"
+        >Upload your notes <i class="bi bi-arrow-up-right ms-2"></i
+      ></a>
+    </div>
+  </div>
+</section>

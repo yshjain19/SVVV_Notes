@@ -1,0 +1,66 @@
+<nav class="navbar navbar-expand-lg navbar-light sticky-top nav-glass">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/"
+      ><span class="brand-mark"
+        ><img src="/images/logo-icon.svg" alt="SVVV_Notes logo" width="19" height="19" style="display:block;" /></span
+      ><span>SVVV_<span class="text-primary">Notes</span></span></a
+    >
+    <button
+      class="navbar-toggler border-0 shadow-none"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#nav"
+    >
+      <i class="bi bi-list fs-3"></i>
+    </button>
+    <div class="collapse navbar-collapse" id="nav">
+      <ul class="navbar-nav mx-auto gap-lg-2">
+        <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+        <li class="nav-item">
+          <a class="nav-link" href="/notes">Browse notes</a>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
+        <li class="nav-item">
+          <a class="nav-link" href="/contact">Contact</a>
+        </li>
+        <% if (currentUser && (currentUser.isAdmin || currentUser.username === 'admin')) { %>
+        <li class="nav-item">
+          <a class="nav-link text-primary fw-bold" href="/admin/dashboard">Dashboard</a>
+        </li>
+        <% } %>
+      </ul>
+      <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
+        <% if (currentUser) { %><a class="btn btn-soft" href="/notes/new"
+          ><i class="bi bi-cloud-arrow-up me-1"></i> Upload</a
+        ><a class="avatar-link" href="/users/<%= currentUser._id %>"
+          ><span class="avatar-sm"
+            ><%= currentUser.username?.charAt(0).toUpperCase() %></span
+          ></a
+        >
+        <% } else { %><a
+          class="btn btn-link text-dark text-decoration-none"
+          href="/login"
+          >Log in</a
+        ><a class="btn btn-primary px-3" href="/register">Create account</a><% }
+        %>
+      </div>
+    </div>
+  </div>
+</nav>
+<div class="toast-stack">
+  <% for (const msg of success) { %>
+  <div class="alert alert-success alert-dismissible fade show shadow-sm">
+    <i class="bi bi-check-circle-fill me-2"></i><%= msg %><button
+      class="btn-close"
+      data-bs-dismiss="alert"
+    ></button>
+  </div>
+  <% } %><% for (const msg of error) { %>
+  <div class="alert alert-danger alert-dismissible fade show shadow-sm">
+    <i class="bi bi-exclamation-circle-fill me-2"></i><%= msg %><button
+      class="btn-close"
+      data-bs-dismiss="alert"
+    ></button>
+  </div>
+  <% } %>
+</div>

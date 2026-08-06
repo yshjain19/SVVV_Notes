@@ -1,0 +1,25 @@
+# Dependency directories
+node_modules/
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Local database files and logs (contains MongoDB data and mongod.log)
+data/
+
+# User uploads (if stored locally instead of Cloudinary)
+public/uploads/
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# System files
+.DS_Store
+Thumbs.db

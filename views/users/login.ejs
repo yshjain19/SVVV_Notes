@@ -1,0 +1,60 @@
+<% layout('layouts/boilerplate') %>
+<section class="auth-shell">
+  <div class="auth-visual">
+    <div>
+      <img src="/images/logo.svg" alt="SVVV_Notes" height="52" style="margin-bottom:24px;filter:brightness(0) invert(1);" />
+      <h1>One place for<br />every study win.</h1>
+      <p>
+        Join a growing community of SVVV CSE students sharing what they learn.
+      </p>
+    </div>
+    <div class="auth-quote">
+      <i class="bi bi-quote"></i>
+      <p>
+        “I found a clean set of OS notes the night before my mid-sem.
+        Lifesaver.”
+      </p>
+      <span>— SVVV CSE Student</span>
+    </div>
+  </div>
+  <div class="auth-form-side">
+    <form
+      class="auth-form needs-validation"
+      action="/login"
+      method="POST"
+      novalidate
+    >
+      <a class="navbar-brand d-lg-none mb-5 d-inline-flex align-items-center gap-2" href="/"
+        ><span class="brand-mark"
+          ><img src="/images/logo-icon.svg" alt="SVVV_Notes logo" width="17" height="17" style="display:block;" />
+        </span>
+        SVVV_Notes</a
+      ><span class="section-kicker">WELCOME BACK</span>
+      <h1>Sign in to your account.</h1>
+      <p class="mb-4 text-secondary">
+        Pick up where your last study session ended.
+      </p>
+      <label class="form-label">Username</label
+      ><input
+        class="form-control"
+        name="username"
+        required
+        placeholder="Your username"
+        autocomplete="username"
+      /><label class="form-label mt-3">Password</label
+      ><input
+        class="form-control"
+        type="password"
+        name="password"
+        required
+        placeholder="Your password"
+        autocomplete="current-password"
+      /><button class="btn btn-primary w-100 mt-4 py-2">
+        Sign in <i class="bi bi-arrow-right ms-2"></i>
+      </button>
+      <p class="auth-switch">
+        New to SVVV_Notes? <a href="/register">Create an account</a>
+      </p>
+    </form>
+  </div>
+</section>
