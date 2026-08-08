@@ -241,7 +241,7 @@
       <h2>Your next study session<br />starts here.</h2>
     </div>
     <div class="subject-grid mt-4">
-      <% if (locals.activeSubjects && activeSubjects.length) { %>
+      <% if (typeof activeSubjects !== 'undefined' && activeSubjects && activeSubjects.length) { %>
         <% 
           const iconMap = {
             'dbms': 'database',
