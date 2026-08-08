@@ -1,5 +1,6 @@
 const User = require("../models/user");
 const Note = require("../models/note");
+const { sendWelcomeEmail } = require("../config/mail");
 
 // Authentication views are deliberately kept thin; business logic is below.
 exports.renderRegister = (req, res) =>
@@ -22,6 +23,12 @@ exports.register = async (req, res, next) => {
     });
 
     req.flash("success", `Welcome to SVVV_Notes, ${user.username}!`);
+    
+    // Send welcome email in background
+    sendWelcomeEmail(user.email, user.fullName || user.username).catch(err => {
+      console.error("Failed to send welcome email in register background:", err);
+    });
+
     res.redirect("/notes");
   } catch (error) {
     if (error.code === 11000 || (error.name === "MongoServerError" && error.message.includes("E11000"))) {
