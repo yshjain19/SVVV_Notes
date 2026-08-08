@@ -138,6 +138,15 @@ app.get("/", async (req, res, next) => {
       }));
     }
 
+    // Debug log to trace what is being passed to res.render
+    try {
+      const fs = require('fs');
+      const logMsg = `${new Date().toISOString()} - GET / - latestNotes: ${latestNotes.length}, activeSubjects: ${activeSubjects.length}\n`;
+      fs.appendFileSync(path.join(__dirname, 'log.txt'), logMsg);
+    } catch (e) {
+      console.error('Failed to write debug log:', e);
+    }
+
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
       latestNotes,
