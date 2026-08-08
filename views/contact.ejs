@@ -18,9 +18,18 @@
           or question.
         </p>
       </div>
-      <a href="https://mail.google.com/mail/?view=cm&fs=1&to=yshjain19@gmail.com" target="_blank" class="btn btn-primary"
+      <a href="mailto:yshjain19@gmail.com" id="emailLink" class="btn btn-primary"
         >Email the team <i class="bi bi-arrow-up-right ms-2"></i
       ></a>
+      <script>
+        document.getElementById('emailLink').addEventListener('click', function(e) {
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+          if (!isMobile) {
+            e.preventDefault();
+            window.open('https://mail.google.com/mail/?view=cm&fs=1&to=yshjain19@gmail.com', '_blank');
+          }
+        });
+      </script>
     </div>
   </div>
 </section>
