@@ -89,7 +89,7 @@ app.use((req, res, next) => {
   res.locals.error = req.flash("error");
   res.locals.pageTitle = "SVVV_Notes";
   // Shared template values: authentication, feedback toasts, and SEO URL.
-  res.locals.canonical = `${req.protocol}://${req.get("host")}${req.path}`;
+  res.locals.canonical = `${req.get("x-forwarded-proto") || req.protocol}://${req.get("host")}${req.path}`;
   next();
 });
 
@@ -124,7 +124,8 @@ app.get("/contact", (req, res) =>
 );
 
 app.get("/robots.txt", (req, res) => {
-  const host = `${req.protocol}://${req.get("host")}`;
+  const protocol = req.get("x-forwarded-proto") || req.protocol;
+  const host = `${protocol}://${req.get("host")}`;
   res.type("text/plain").send(`User-agent: *\nAllow: /\nSitemap: ${host}/sitemap.xml`);
 });
 
@@ -132,7 +133,8 @@ app.get("/sitemap.xml", async (req, res, next) => {
   try {
     const Note = require("./models/note");
     const notes = await Note.find({}, "_id updatedAt");
-    const host = `${req.protocol}://${req.get("host")}`;
+    const protocol = req.get("x-forwarded-proto") || req.protocol;
+    const host = `${protocol}://${req.get("host")}`;
 
     // Add dynamic note pages so search engines can discover new uploads.
     const urls = ["/", "/about", "/contact", "/notes"].concat(
