@@ -59,7 +59,7 @@ app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "development-only-secret",
+    secret: process.env.SESSION_SECRET ,
     resave: false,
     saveUninitialized: false,
     // Atlas-backed sessions survive a Render/Railway process restart.

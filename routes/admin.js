@@ -8,6 +8,7 @@ const catchAsync = (fn) => async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+  
 };
 
 // Require authentication and administrator role for all routes in this router

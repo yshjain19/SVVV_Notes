@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema(
       },
       filename: String,
     },
-    branch: { type: String, default: "Computer Science" },
+    branch: { type: String, default: "C.S.E" },
     course: { type: String, default: "Computer Science" },
     gender: { type: String, enum: ["Male", "Female", "Other"] },
     semester: { type: Number, min: 1, max: 8 },
