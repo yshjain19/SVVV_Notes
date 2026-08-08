@@ -241,15 +241,50 @@
       <h2>Your next study session<br />starts here.</h2>
     </div>
     <div class="subject-grid mt-4">
-      <% ['Data Structures','Operating Systems','DBMS','Computer Networks','Software Engineering','Web Development','Java','Python'].forEach((s, i) => { %><a
-        href="/notes?q=<%= s %>"
-        class="subject-pill"
-        ><span class="subject-icon s<%= i %>"
-          ><i
-            class="bi bi-<%= ['diagram-3','cpu','database','diagram-2','braces-asterisk','window-stack','cup-hot','terminal'][i] %>"
-          ></i></span
-        ><span><%= s %></span><i class="bi bi-arrow-up-right"></i></a
-      ><% }) %>
+      <% if (locals.activeSubjects && activeSubjects.length) { %>
+        <% 
+          const iconMap = {
+            'dbms': 'database',
+            'sql': 'database',
+            'computer networks': 'diagram-2',
+            'cn': 'diagram-2',
+            'data structures': 'diagram-3',
+            'fds': 'diagram-3',
+            'operating system': 'cpu',
+            'os': 'cpu',
+            'artificial intelligence': 'robot',
+            'ai': 'robot',
+            'data science': 'graph-up',
+            'theory of computation': 'braces',
+            'toc': 'braces',
+            'oops': 'code-slash',
+            'c++': 'code-slash',
+            'physics': 'activity',
+            'mathematics-1': 'calculator',
+            'mathematics-2': 'calculator',
+            'm-1': 'calculator',
+            'm-2': 'calculator',
+          };
+          function getIcon(name) {
+            const norm = name.toLowerCase().trim();
+            for (const [key, value] of Object.entries(iconMap)) {
+              if (norm.includes(key)) return value;
+            }
+            return 'journal-text';
+          }
+        %>
+        <% activeSubjects.forEach((subject, i) => { %>
+          <a href="/notes?q=<%= encodeURIComponent(subject.name) %>" class="subject-pill">
+            <span class="subject-icon s<%= i % 8 %>">
+              <i class="bi bi-<%= getIcon(subject.name) %>"></i>
+            </span>
+            <span><%= subject.name %></span>
+            <i class="bi bi-arrow-up-right"></i>
+          </a>
+        <% }) %>
+      <% } else { %>
+        <p class="text-center text-muted">No subjects found with notes.</p>
+      <% } %>
     </div>
   </div>
 </section>

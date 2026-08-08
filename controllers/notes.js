@@ -69,12 +69,28 @@ exports.removeStoredFile = async function removeStoredFile(fileUrl) {
 exports.index = async (req, res) => {
   const { q = "", semester = "" } = req.query;
   const filter = {};
-  if (q) filter.$text = { $search: q };
+  
   if (semester) filter.semester = semester;
+
+  if (q) {
+    const Subject = require("../models/subject");
+    // Find subjects matching the query case-insensitively
+    const matchingSubjects = await Subject.find({
+      name: { $regex: q, $options: 'i' }
+    });
+    const matchingSubjectIds = matchingSubjects.map(s => s._id);
+
+    // Search by text query OR by matching subject IDs
+    filter.$or = [
+      { $text: { $search: q } },
+      { subject: { $in: matchingSubjectIds } }
+    ];
+  }
+
   const notes = await Note.find(filter)
     .populate("uploadedBy")
     .populate("subject")
-    .sort(q ? { score: { $meta: "textScore" } } : { createdAt: -1 });
+    .sort({ createdAt: -1 });
   res.render("notes/index", {
     pageTitle: "Browse notes | SVVV_Notes",
     notes,

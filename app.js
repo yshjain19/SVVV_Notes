@@ -100,15 +100,22 @@ app.use("/admin", adminRoutes);
 app.get("/", async (req, res, next) => {
   try {
     const Note = require("./models/note");
+    const Subject = require("./models/subject");
+
     const latestNotes = await Note.find({})
       .populate("uploadedBy")
       .populate("subject")
       .sort({ createdAt: -1 })
       .limit(3);
 
+    // Fetch only subjects that actually have notes uploaded
+    const activeSubjectIds = await Note.distinct("subject");
+    const activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } }).sort({ name: 1 });
+
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
       latestNotes,
+      activeSubjects,
     });
   } catch (error) {
     next(error);
