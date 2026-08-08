@@ -80,9 +80,10 @@ exports.index = async (req, res) => {
     });
     const matchingSubjectIds = matchingSubjects.map(s => s._id);
 
-    // Search by text query OR by matching subject IDs
+    // Search by title/description matching query OR subject ID matching matchingSubjectIds
     filter.$or = [
-      { $text: { $search: q } },
+      { title: { $regex: q, $options: 'i' } },
+      { description: { $regex: q, $options: 'i' } },
       { subject: { $in: matchingSubjectIds } }
     ];
   }
