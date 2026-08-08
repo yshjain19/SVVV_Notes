@@ -108,9 +108,21 @@ app.get("/", async (req, res, next) => {
       .sort({ createdAt: -1 })
       .limit(3);
 
-    // Fetch only subjects that actually have notes uploaded
-    const activeSubjectIds = await Note.distinct("subject");
-    const activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } }).sort({ name: 1 });
+    // Fetch top 12 active subjects that actually have notes uploaded
+    const activeSubjectsData = await Note.aggregate([
+      { $group: { _id: "$subject", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 12 }
+    ]);
+    const activeSubjectIds = activeSubjectsData.map(s => s._id);
+    const activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } });
+    
+    // Sort activeSubjects by note count descending to keep the most popular ones first
+    activeSubjects.sort((a, b) => {
+      const aCount = activeSubjectsData.find(s => s._id.equals(a._id))?.count || 0;
+      const bCount = activeSubjectsData.find(s => s._id.equals(b._id))?.count || 0;
+      return bCount - aCount;
+    });
 
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
