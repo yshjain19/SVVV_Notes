@@ -16,7 +16,7 @@ const { isLoggedIn, isNoteOwner } = require("../middleware");
 // or save them locally on-demand.
 const upload = multer({
   storage,
-  limits: { fileSize: 15 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedExts = [".pdf", ".png", ".jpg", ".jpeg"];
     const ext = path.extname(file.originalname).toLowerCase();

@@ -1,42 +1,32 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title><%= pageTitle %></title>
-    <link rel="icon" type="image/svg+xml" href="/images/logo-icon.svg" />
-    <link rel="shortcut icon" href="/images/logo-icon.svg" />
-    <meta
-      name="description"
-      content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'SVVV_Notes is a student-built study notes sharing community for SVVV CSE students.' %>"
-    />
-    <meta property="og:title" content="<%= pageTitle %>" />
-    <meta
-      property="og:description"
-      content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'Share, discover, and study better with SVVV classmates.' %>"
-    />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta property="og:image" content="/images/logo-icon.svg" />
-    <link
-      rel="canonical"
-      href="<%= typeof canonical !== 'undefined' ? canonical : '' %>"
-    />
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-      rel="stylesheet"
-    />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/css/app.css" />
-    <script type="application/ld+json">
+
+<head>
+  <meta name="google-site-verification" content="n0TPgwEvsHs1AsQA1nlncfBbwXJfuoEjprBGAdHyxMU" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>
+    <%= pageTitle %>
+  </title>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-icon.svg" />
+  <link rel="shortcut icon" href="/images/logo-icon.svg" />
+  <meta name="description"
+    content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'SVVV_Notes is a student-built study notes sharing community for SVVV CSE students.' %>" />
+  <meta property="og:title" content="<%= pageTitle %>" />
+  <meta property="og:description"
+    content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'Share, discover, and study better with SVVV classmates.' %>" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta property="og:image" content="/images/logo-icon.svg" />
+  <link rel="canonical" href="<%= typeof canonical !== 'undefined' ? canonical : '' %>" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -44,12 +34,14 @@
         "description": "Student-built academic notes sharing for SVVV CSE students."
       }
     </script>
-  </head>
-  <body>
-    <%- include('../partials/navbar') %>
+</head>
+
+<body>
+  <%- include('../partials/navbar') %>
     <main><%- body %></main>
     <%- include('../partials/footer') %>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/js/app.js"></script>
-  </body>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+      <script src="/js/app.js"></script>
+</body>
+
 </html>
