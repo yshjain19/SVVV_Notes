@@ -115,7 +115,7 @@ app.get("/", async (req, res, next) => {
       { $limit: 12 }
     ]);
     const activeSubjectIds = activeSubjectsData.map(s => s._id);
-    const activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } });
+    let activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } });
     
     // Sort activeSubjects by note count descending to keep the most popular ones first
     activeSubjects.sort((a, b) => {
@@ -123,6 +123,20 @@ app.get("/", async (req, res, next) => {
       const bCount = activeSubjectsData.find(s => s._id.equals(b._id))?.count || 0;
       return bCount - aCount;
     });
+
+    // Fallback 1: Agar kisi subject me notes nahi hain, toh database me available subjects dikhao
+    if (activeSubjects.length === 0) {
+      activeSubjects = await Subject.find({}).sort({ name: 1 }).limit(12);
+    }
+
+    // Fallback 2: Agar database bilkul khali (unseeded) hai, toh default subjects dikhao
+    if (activeSubjects.length === 0) {
+      const defaultNames = ['Data Structures', 'Operating Systems', 'DBMS', 'Computer Networks', 'Software Engineering', 'Web Development', 'Java', 'Python'];
+      activeSubjects = defaultNames.map(name => ({
+        _id: null,
+        name: name
+      }));
+    }
 
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
