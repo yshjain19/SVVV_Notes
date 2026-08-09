@@ -8,15 +8,19 @@
   <title>
     <%= pageTitle %>
   </title>
-  <link rel="icon" type="image/svg+xml" href="/images/logo-icon.svg" />
-  <link rel="shortcut icon" href="/images/logo-icon.svg" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png" />
   <meta name="description"
     content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'SVVV_Notes is a student-built study notes sharing community for SVVV CSE students.' %>" />
+  <meta name="keywords" content="SVVV_Notes, SVVV Notes, SVVV, svvv_notes, svvvnotes, college notes, study notes, SVVV CSE, Shri Vaishnav Vidyapeeth Vishwavidyalaya" />
   <meta property="og:title" content="<%= pageTitle %>" />
   <meta property="og:description"
     content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'Share, discover, and study better with SVVV classmates.' %>" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta property="og:image" content="/images/logo-icon.svg" />
+  <meta property="og:image" content="/images/favicon-512x512.png" />
   <link rel="canonical" href="<%= typeof canonical !== 'undefined' ? canonical : '' %>" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
@@ -31,6 +35,13 @@
         "@context": "https://schema.org",
         "@type": "WebSite",
         "name": "SVVV_Notes",
+        "alternateName": [
+          "SVVV Notes",
+          "svvv_notes",
+          "SVVVNotes",
+          "SVVV_Notes | Study smarter, together"
+        ],
+        "url": "https://svvv-notes.onrender.com",
         "description": "Student-built academic notes sharing for SVVV CSE students."
       }
     </script>
