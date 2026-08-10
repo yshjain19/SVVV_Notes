@@ -35,7 +35,7 @@ function uploadFile(field) {
     mw(req, res, (err) => {
       if (!err) return next();
       if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-        req.flash("error", "File must be under 15 MB.");
+        req.flash("error", "File must be under 100 MB.");
         return res.redirect("back");
       }
       if (err) {

@@ -16,6 +16,8 @@ router
   .route("/register")
   .get(users.renderRegister)
   .post(catchAsync(users.register));
+
+  
 const regenerateSession = (req, res, next) => {
   const returnTo = req.session.returnTo;
   req.session.regenerate((err) => {
