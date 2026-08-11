@@ -8,13 +8,13 @@
   <title>
     <%= pageTitle %>
   </title>
-  <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
-  <link rel="icon" type="image/svg+xml" href="/images/logo-icon.svg" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png" />
+  <!-- Favicon & Brand Icons (Google Search & Multi-Device Compatible) -->
   <link rel="icon" type="image/png" sizes="48x48" href="/images/favicon-48x48.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <link rel="icon" type="image/svg+xml" href="/images/logo-icon.svg" />
+  <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
   <meta name="description"
     content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'SVVV_Notes is a student-built study notes sharing community for SVVV CSE students.' %>" />
   <meta name="keywords" content="SVVV_Notes, SVVV Notes, SVVV, svvv_notes, svvvnotes, college notes, study notes, SVVV CSE, Shri Vaishnav Vidyapeeth Vidyalaya" />
@@ -45,7 +45,15 @@
           "SVVVNotes"
         ],
         "url": "https://svvv-notes.onrender.com",
-        "description": "Student-built academic notes sharing for SVVV CSE students."
+        "description": "Student-built academic notes sharing for SVVV CSE students.",
+        "publisher": {
+          "@type": "Organization",
+          "name": "SVVV_Notes",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://svvv-notes.onrender.com/favicon.png"
+          }
+        }
       }
     </script>
   <% } %>
