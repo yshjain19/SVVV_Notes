@@ -167,45 +167,128 @@ app.get("/contact", (req, res) =>
   res.render("contact", { pageTitle: "Contact | SVVV_Notes" }),
 );
 
+function escapeXml(unsafe) {
+  if (typeof unsafe !== "string") return "";
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "&":
+        return "&amp;";
+      case "'":
+        return "&apos;";
+      case '"':
+        return "&quot;";
+      default:
+        return c;
+    }
+  });
+}
+
+function getBaseUrl(req) {
+  if (process.env.SITE_URL) {
+    return process.env.SITE_URL.replace(/\/+$/, "");
+  }
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL.replace(/\/+$/, "");
+  }
+  const forwardedProto = req.get("x-forwarded-proto");
+  const host = req.get("x-forwarded-host") || req.get("host") || "svvv-notes.onrender.com";
+  const protocol = forwardedProto || (process.env.NODE_ENV === "production" ? "https" : req.protocol || "https");
+  return `${protocol}://${host}`.replace(/\/+$/, "");
+}
+
 app.get("/robots.txt", (req, res) => {
-  const protocol = req.get("x-forwarded-proto") || req.protocol;
-  const host = `${protocol}://${req.get("host")}`;
+  const baseUrl = getBaseUrl(req);
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.set("Cache-Control", "public, max-age=86400");
-  res.send(`User-agent: *\nAllow: /\n\nSitemap: ${host}/sitemap.xml\n`);
+  res.send(`User-agent: *\nAllow: /\n\nSitemap: ${baseUrl}/sitemap.xml\n`);
 });
 
-app.get("/sitemap.xml", async (req, res, next) => {
+app.get("/sitemap.xml", async (req, res) => {
+  const baseUrl = getBaseUrl(req);
   try {
     const Note = require("./models/note");
-    const notes = await Note.find({}, "_id updatedAt").lean();
-    const protocol = req.get("x-forwarded-proto") || req.protocol;
-    const host = `${protocol}://${req.get("host")}`;
+    const User = require("./models/user");
 
-    // Add dynamic note pages so search engines can discover new uploads.
-    const staticUrls = ["/", "/about", "/contact", "/notes"];
-    const urls = staticUrls.concat(notes.map((note) => `/notes/${note._id}`));
+    // Fetch notes and active note uploaders
+    const notesPromise = Note.find({}, "_id updatedAt createdAt").sort({ updatedAt: -1 }).lean().catch(() => []);
+    const activeUserIdsPromise = Note.distinct("uploadedBy").catch(() => []);
 
-    const xmlUrls = urls.map((url, index) => {
-      let xml = `<url><loc>${host}${url}</loc>`;
-      if (index >= staticUrls.length) {
-        const note = notes[index - staticUrls.length];
-        if (note && note.updatedAt) {
-          const modDate = new Date(note.updatedAt).toISOString();
-          xml += `<lastmod>${modDate}</lastmod>`;
-        }
+    const [notes, activeUserIds] = await Promise.all([notesPromise, activeUserIdsPromise]);
+
+    let users = [];
+    if (activeUserIds && activeUserIds.length > 0) {
+      users = await User.find({ _id: { $in: activeUserIds } }, "_id updatedAt createdAt").lean().catch(() => []);
+    }
+
+    const now = new Date().toISOString();
+
+    // Static core pages
+    const staticPages = [
+      { loc: `${baseUrl}/`, changefreq: "daily", priority: "1.0", lastmod: now },
+      { loc: `${baseUrl}/notes`, changefreq: "daily", priority: "0.9", lastmod: now },
+      { loc: `${baseUrl}/about`, changefreq: "monthly", priority: "0.6" },
+      { loc: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.6" },
+    ];
+
+    // Dynamic individual note pages
+    const notePages = (notes || []).map((note) => {
+      const modDate = note.updatedAt || note.createdAt;
+      return {
+        loc: `${baseUrl}/notes/${note._id}`,
+        changefreq: "weekly",
+        priority: "0.8",
+        lastmod: modDate ? new Date(modDate).toISOString() : undefined,
+      };
+    });
+
+    // Dynamic public author profile pages
+    const userPages = (users || []).map((user) => {
+      const modDate = user.updatedAt || user.createdAt;
+      return {
+        loc: `${baseUrl}/users/${user._id}`,
+        changefreq: "weekly",
+        priority: "0.5",
+        lastmod: modDate ? new Date(modDate).toISOString() : undefined,
+      };
+    });
+
+    const allPages = [...staticPages, ...notePages, ...userPages];
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    for (const page of allPages) {
+      xml += `  <url>\n`;
+      xml += `    <loc>${escapeXml(page.loc)}</loc>\n`;
+      if (page.lastmod) {
+        xml += `    <lastmod>${page.lastmod}</lastmod>\n`;
       }
-      xml += `</url>`;
-      return xml;
-    }).join("");
+      if (page.changefreq) {
+        xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+      }
+      if (page.priority) {
+        xml += `    <priority>${page.priority}</priority>\n`;
+      }
+      xml += `  </url>\n`;
+    }
 
-    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${xmlUrls}\n</urlset>`;
+    xml += `</urlset>\n`;
 
     res.set("Content-Type", "application/xml; charset=utf-8");
+    res.set("X-Robots-Tag", "all");
     res.set("Cache-Control", "public, max-age=1800, s-maxage=3600");
-    res.send(sitemap);
+    return res.status(200).send(xml);
   } catch (error) {
-    next(error);
+    console.error("Failed to generate dynamic sitemap:", error);
+    // Fail-safe XML response to guarantee Google Search Console never receives a 500 error
+    const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${escapeXml(baseUrl)}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/notes</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/about</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/contact</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n</urlset>\n`;
+    res.set("Content-Type", "application/xml; charset=utf-8");
+    res.set("X-Robots-Tag", "all");
+    return res.status(200).send(fallbackXml);
   }
 });
 
