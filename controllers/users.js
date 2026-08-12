@@ -1,6 +1,7 @@
 const User = require("../models/user");
 const Note = require("../models/note");
-const { sendWelcomeEmail } = require("../config/mail");
+const { sendWelcomeEmail, sendOTPEmail, sendPasswordResetEmail } = require("../config/mail");
+const crypto = require("crypto");
 
 // Authentication views are deliberately kept thin; business logic is below.
 exports.renderRegister = (req, res) =>
@@ -134,6 +135,233 @@ exports.updateProfile = async (req, res, next) => {
       req.flash("error", error.message);
       return res.redirect(`/users/${id}/edit`);
     }
+    next(error);
+  }
+};
+
+// ============ OTP & EMAIL VERIFICATION ============
+
+/**
+ * Generate and send OTP to user's email
+ */
+exports.sendOTP = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      req.flash("error", "Email is required.");
+      return res.redirect("/login");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      req.flash("error", "No account found with this email.");
+      return res.redirect("/login");
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.otp = {
+      code: otp,
+      expiresAt: otpExpiry,
+    };
+
+    await user.save();
+
+    // Send OTP via email
+    await sendOTPEmail(user.email, user.fullName || user.username, otp);
+
+    req.flash("success", `OTP sent to ${user.email}. It will expire in 10 minutes.`);
+    res.redirect(`/verify-otp?email=${encodeURIComponent(user.email)}`);
+  } catch (error) {
+    console.error("Error sending OTP:", error);
+    next(error);
+  }
+};
+
+/**
+ * Verify OTP and mark email as verified
+ */
+exports.verifyOTP = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      req.flash("error", "Email and OTP are required.");
+      return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      req.flash("error", "User not found.");
+      return res.redirect("/login");
+    }
+
+    // Check if OTP exists and is not expired
+    if (!user.otp || !user.otp.code) {
+      req.flash("error", "No OTP found. Request a new one.");
+      return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
+    }
+
+    if (new Date() > user.otp.expiresAt) {
+      req.flash("error", "OTP has expired. Request a new one.");
+      return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
+    }
+
+    // Verify OTP
+    if (user.otp.code !== otp) {
+      req.flash("error", "Invalid OTP. Please try again.");
+      return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
+    }
+
+    // Mark email as verified and clear OTP
+    user.isEmailVerified = true;
+    user.otp = { code: null, expiresAt: null };
+    await user.save();
+
+    req.flash("success", "Email verified successfully!");
+    res.redirect("/notes");
+  } catch (error) {
+    console.error("Error verifying OTP:", error);
+    next(error);
+  }
+};
+
+// ============ PASSWORD RESET ============
+
+/**
+ * Render forgot password form
+ */
+exports.renderForgotPassword = (req, res) => {
+  res.render("users/forgot-password", { pageTitle: "Forgot Password | SVVV_Notes" });
+};
+
+/**
+ * Send password reset email
+ */
+exports.sendPasswordReset = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      req.flash("error", "Email is required.");
+      return res.redirect("/forgot-password");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      // For security: don't reveal if email exists
+      req.flash("success", `If an account exists with ${email}, you will receive password reset instructions.`);
+      return res.redirect("/login");
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenHash = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    const resetExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    user.passwordResetToken = resetTokenHash;
+    user.passwordResetExpiresAt = resetExpiry;
+    await user.save();
+
+    // Send reset email
+    await sendPasswordResetEmail(user.email, user.fullName || user.username, resetToken);
+
+    req.flash("success", `Password reset instructions sent to ${user.email}`);
+    res.redirect("/login");
+  } catch (error) {
+    console.error("Error sending password reset:", error);
+    next(error);
+  }
+};
+
+/**
+ * Render password reset form
+ */
+exports.renderResetPassword = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+
+    // Hash the token to compare with stored hash
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      passwordResetToken: tokenHash,
+      passwordResetExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      req.flash("error", "Password reset link is invalid or has expired.");
+      return res.redirect("/forgot-password");
+    }
+
+    res.render("users/reset-password", {
+      pageTitle: "Reset Password | SVVV_Notes",
+      token,
+    });
+  } catch (error) {
+    console.error("Error rendering reset password:", error);
+    next(error);
+  }
+};
+
+/**
+ * Reset user password
+ */
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { password, confirmPassword } = req.body;
+
+    if (!password || !confirmPassword) {
+      req.flash("error", "Please fill in all fields.");
+      return res.redirect(`/reset-password/${token}`);
+    }
+
+    if (password !== confirmPassword) {
+      req.flash("error", "Passwords do not match.");
+      return res.redirect(`/reset-password/${token}`);
+    }
+
+    if (password.length < 6) {
+      req.flash("error", "Password must be at least 6 characters.");
+      return res.redirect(`/reset-password/${token}`);
+    }
+
+    // Hash the token to compare with stored hash
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      passwordResetToken: tokenHash,
+      passwordResetExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      req.flash("error", "Password reset link is invalid or has expired.");
+      return res.redirect("/forgot-password");
+    }
+
+    // Use setPassword (provided by Passport Local Mongoose)
+    user.setPassword(password);
+    user.passwordResetToken = undefined;
+    user.passwordResetExpiresAt = undefined;
+    await user.save();
+
+    req.flash("success", "Password reset successfully! Please login with your new password.");
+    res.redirect("/login");
+  } catch (error) {
+    console.error("Error resetting password:", error);
     next(error);
   }
 };

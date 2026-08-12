@@ -40,6 +40,28 @@ router
     users.login,
   );
 router.post("/logout", users.logout);
+
+// ============ OTP & EMAIL VERIFICATION ============
+router
+  .route("/send-otp")
+  .post(catchAsync(users.sendOTP));
+
+router
+  .route("/verify-otp")
+  .get((req, res) => res.render("users/verify-otp", { pageTitle: "Verify Email | SVVV_Notes", email: req.query.email || "" }))
+  .post(catchAsync(users.verifyOTP));
+
+// ============ PASSWORD RESET ============
+router
+  .route("/forgot-password")
+  .get(users.renderForgotPassword)
+  .post(catchAsync(users.sendPasswordReset));
+
+router
+  .route("/reset-password/:token")
+  .get(catchAsync(users.renderResetPassword))
+  .post(catchAsync(users.resetPassword));
+
 // Public profile page showing a student's uploaded notes.
 router.get("/users/:id", catchAsync(users.profile));
 router.get("/users/:id/edit", isLoggedIn, isProfileOwner, catchAsync(users.renderEditForm));

@@ -28,6 +28,15 @@ const userSchema = new mongoose.Schema(
     gender: { type: String, enum: ["Male", "Female", "Other"] },
     semester: { type: Number, min: 1, max: 8 },
     isAdmin: { type: Boolean, default: false },
+    // OTP & Email Verification
+    otp: {
+      code: String,
+      expiresAt: Date,
+    },
+    isEmailVerified: { type: Boolean, default: false },
+    // Password Reset
+    passwordResetToken: String,
+    passwordResetExpiresAt: Date,
   },
   { timestamps: true },
 );
