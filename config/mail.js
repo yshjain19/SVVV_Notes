@@ -1,6 +1,4 @@
 const { Resend } = require('resend');
-const fs = require('fs');
-const path = require('path');
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -273,27 +271,101 @@ exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
     return false;
   }
 
+  const resetUrl = `https://svvv-notes.onrender.com/reset-password/${resetToken}`;
+  const year = new Date().getFullYear();
+  
+  // Professional password reset email template
+  const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Your Password</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif; background-color: #f5f5f5; line-height: 1.6; color: #333;">
+    <div style="background-color: #f5f5f5; padding: 40px 20px;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);">
+            <!-- Header Section -->
+            <div style="background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); padding: 40px 30px; text-align: center; border-bottom: none;">
+                <div style="font-size: 48px; margin-bottom: 15px;">🔐</div>
+                <h1 style="font-size: 24px; font-weight: 800; color: #ffffff; margin: 0; letter-spacing: -0.5px;">SVVV_Notes</h1>
+                <p style="font-size: 12px; color: rgba(255, 255, 255, 0.85); margin: 6px 0 0 0; font-weight: 500;">Password Reset Request</p>
+            </div>
+
+            <!-- Main Content -->
+            <div style="padding: 40px 30px;">
+                <!-- Greeting -->
+                <p style="font-size: 18px; font-weight: 600; color: #1e293b; margin: 0 0 16px 0;">
+                    Hello <span style="color: #4f46e5;">${name}</span>,
+                </p>
+
+                <!-- Main Message -->
+                <p style="font-size: 14px; line-height: 1.8; color: #475569; margin: 0 0 20px 0;">
+                    We received a request to reset your password. Click the button below to create a new, secure password for your account.
+                </p>
+
+                <!-- CTA Button -->
+                <div style="text-align: center; margin: 35px 0;">
+                    <a href="${resetUrl}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+                        Reset Password
+                    </a>
+                </div>
+
+                <!-- Fallback Link Section -->
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 30px 0; border-left: 4px solid #4f46e5;">
+                    <span style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #64748b; margin-bottom: 8px; display: block;">📋 Link Not Working?</span>
+                    <p style="font-size: 12px; font-weight: 400; margin-bottom: 8px; color: #475569;">Copy and paste this URL into your browser:</p>
+                    <p style="font-size: 13px; color: #4f46e5; word-break: break-all; font-family: 'Courier New', monospace; line-height: 1.6; margin: 0;">
+                        ${resetUrl}
+                    </p>
+                </div>
+
+                <!-- Expiry Time Info -->
+                <div style="background-color: #f1f5f9; padding: 15px; border-radius: 6px; text-align: center; font-size: 12px; color: #64748b;">
+                    ⏱️ <strong>This link will expire in 60 minutes.</strong> After that, you'll need to request a new password reset.
+                </div>
+
+                <!-- Security Section -->
+                <div style="background-color: #fef2f2; padding: 16px 20px; border-radius: 8px; border-left: 4px solid #ef4444; margin: 25px 0;">
+                    <p style="font-weight: 600; color: #991b1b; font-size: 13px; margin: 0 0 6px 0;">🛡️ Your Account Security</p>
+                    <p style="font-size: 13px; color: #7c2d12; margin: 0; line-height: 1.6;">
+                        If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged, and your account will remain secure.
+                    </p>
+                </div>
+
+                <!-- Additional Security Info -->
+                <p style="font-size: 12px; color: #64748b; margin-top: 20px; margin-bottom: 0;">
+                    <strong>🔒 Security Reminder:</strong> We will never ask for your password via email. Never share this link with anyone else. SVVV_Notes staff will never ask you to click on suspicious links.
+                </p>
+            </div>
+
+            <!-- Divider -->
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 0;">
+
+            <!-- Footer -->
+            <div style="background-color: #f8fafc; padding: 25px 30px; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="font-size: 12px; color: #64748b; margin: 0 0 10px 0; line-height: 1.6;">
+                    This is an automated message from SVVV_Notes. Please do not reply to this email.
+                </p>
+                <div style="font-size: 11px; margin: 10px 0;">
+                    <a href="https://svvv-notes.onrender.com/privacy" style="color: #4f46e5; text-decoration: none;">Privacy Policy</a>
+                    <span style="color: #cbd5e1;"> | </span>
+                    <a href="https://svvv-notes.onrender.com/contact" style="color: #4f46e5; text-decoration: none;">Contact Us</a>
+                    <span style="color: #cbd5e1;"> | </span>
+                    <a href="https://svvv-notes.onrender.com/help" style="color: #4f46e5; text-decoration: none;">Help Center</a>
+                </div>
+                <p style="font-size: 11px; color: #94a3b8; margin: 12px 0 0 0;">
+                    © ${year} SVVV_Notes. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
+
+  const subject = 'Reset Your Password - SVVV_Notes';
+
   try {
-    // Read the email template
-    const templatePath = path.join(__dirname, '../templates/password-reset-email.html');
-    let htmlContent = fs.readFileSync(templatePath, 'utf8');
-
-    // Replace placeholders with actual values
-    const resetUrl = `https://svvv-notes.onrender.com/reset-password/${resetToken}`;
-    const year = new Date().getFullYear();
-    
-    htmlContent = htmlContent
-      .replace(/{{APP_NAME}}/g, 'SVVV_Notes')
-      .replace(/{{USER_NAME}}/g, name)
-      .replace(/{{RESET_URL}}/g, resetUrl)
-      .replace(/{{EXPIRY_TIME}}/g, '60') // 1 hour in minutes
-      .replace(/{{YEAR}}/g, year)
-      .replace(/{{PRIVACY_URL}}/g, 'https://svvv-notes.onrender.com/privacy')
-      .replace(/{{CONTACT_URL}}/g, 'https://svvv-notes.onrender.com/contact')
-      .replace(/{{HELP_URL}}/g, 'https://svvv-notes.onrender.com/help');
-
-    const subject = 'Reset Your Password - SVVV_Notes';
-
     const response = await resend.emails.send({
       from: `SVVV_Notes <${SENDER_EMAIL}>`,
       to: toEmail,
@@ -306,10 +378,10 @@ exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
       return false;
     }
 
-    console.log('Password reset email sent successfully to:', toEmail);
+    console.log('✅ Password reset email sent successfully to:', toEmail);
     return true;
   } catch (error) {
-    console.error('Error sending password reset email:', error.message);
+    console.error('❌ Error sending password reset email:', error.message);
     return false;
   }
 };
