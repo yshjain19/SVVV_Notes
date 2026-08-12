@@ -88,8 +88,10 @@ app.use((req, res, next) => {
   res.locals.success = req.flash("success");
   res.locals.error = req.flash("error");
   res.locals.pageTitle = "SVVV_Notes";
-  // Shared template values: authentication, feedback toasts, and SEO URL.
-  res.locals.canonical = `${req.get("x-forwarded-proto") || req.protocol}://${req.get("host")}${req.path}`;
+  const protocol = req.get("x-forwarded-proto") || req.protocol;
+  res.locals.siteUrl = `${protocol}://${req.get("host")}`;
+  // Shared template values: authentication, feedback toasts, and SEO URLs.
+  res.locals.canonical = `${res.locals.siteUrl}${req.path}`;
   next();
 });
 
