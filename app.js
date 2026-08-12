@@ -202,7 +202,7 @@ app.get("/sitemap.xml", async (req, res, next) => {
   }
 });
 
-app.all("/{*any}", (req, res) =>
+app.all("*", (req, res) =>
   res.status(404).render("error", {
     pageTitle: "Page not found | SVVV_Notes",
     status: 404,
