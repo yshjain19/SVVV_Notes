@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://svvv-notes.onrender.com/sitemap.xml

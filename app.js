@@ -170,33 +170,40 @@ app.get("/contact", (req, res) =>
 app.get("/robots.txt", (req, res) => {
   const protocol = req.get("x-forwarded-proto") || req.protocol;
   const host = `${protocol}://${req.get("host")}`;
-  res.type("text/plain").send(`User-agent: *\nAllow: /\nSitemap: ${host}/sitemap.xml`);
+  res.set("Content-Type", "text/plain; charset=utf-8");
+  res.set("Cache-Control", "public, max-age=86400");
+  res.send(`User-agent: *\nAllow: /\n\nSitemap: ${host}/sitemap.xml\n`);
 });
 
 app.get("/sitemap.xml", async (req, res, next) => {
   try {
     const Note = require("./models/note");
-    const notes = await Note.find({}, "_id updatedAt");
+    const notes = await Note.find({}, "_id updatedAt").lean();
     const protocol = req.get("x-forwarded-proto") || req.protocol;
     const host = `${protocol}://${req.get("host")}`;
 
     // Add dynamic note pages so search engines can discover new uploads.
-    const urls = ["/", "/about", "/contact", "/notes"].concat(
-      notes.map((note) => `/notes/${note._id}`),
-    );
+    const staticUrls = ["/", "/about", "/contact", "/notes"];
+    const urls = staticUrls.concat(notes.map((note) => `/notes/${note._id}`));
 
     const xmlUrls = urls.map((url, index) => {
       let xml = `<url><loc>${host}${url}</loc>`;
-      if (index > 3 && notes[index - 4]?.updatedAt) {
-        xml += `<lastmod>${notes[index - 4].updatedAt.toISOString()}</lastmod>`;
+      if (index >= staticUrls.length) {
+        const note = notes[index - staticUrls.length];
+        if (note && note.updatedAt) {
+          const modDate = new Date(note.updatedAt).toISOString();
+          xml += `<lastmod>${modDate}</lastmod>`;
+        }
       }
       xml += `</url>`;
       return xml;
     }).join("");
 
-    const sitemap = `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${xmlUrls}</urlset>`;
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${xmlUrls}\n</urlset>`;
 
-    res.type("application/xml").send(sitemap);
+    res.set("Content-Type", "application/xml; charset=utf-8");
+    res.set("Cache-Control", "public, max-age=1800, s-maxage=3600");
+    res.send(sitemap);
   } catch (error) {
     next(error);
   }
