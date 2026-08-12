@@ -1,4 +1,6 @@
 const { Resend } = require('resend');
+const fs = require('fs');
+const path = require('path');
 
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -271,70 +273,27 @@ exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
     return false;
   }
 
-  const resetUrl = `https://svvv-notes.onrender.com/reset-password/${resetToken}`;
-  const subject = 'Password Reset - SVVV_Notes';
-  
-  const htmlContent = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #1e293b; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .email-wrapper { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-        .header { background: linear-gradient(135deg, #ef4444 0%, #f87171 100%); color: white; padding: 40px 30px; text-align: center; }
-        .header h1 { margin: 0; font-size: 28px; font-weight: 800; }
-        .content { padding: 40px 30px; }
-        .warning { background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 4px; }
-        .warning p { margin: 0; color: #991b1b; font-size: 14px; }
-        .cta-button { display: inline-block; background-color: #4f46e5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; margin: 30px 0; }
-        .cta-button:hover { background-color: #4338ca; }
-        .footer { background-color: #f8fafc; padding: 20px 30px; text-align: center; color: #64748b; font-size: 12px; }
-        .reset-link { word-break: break-all; color: #4f46e5; font-family: monospace; font-size: 12px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="email-wrapper">
-          <div class="header">
-            <h1>Password Reset Request</h1>
-          </div>
-          
-          <div class="content">
-            <p>Hi <strong>${name}</strong>,</p>
-            <p>We received a request to reset your password. Click the button below to create a new password:</p>
-            
-            <div style="text-align: center;">
-              <a href="${resetUrl}" class="cta-button">Reset Password</a>
-            </div>
-
-            <p style="color: #64748b; font-size: 14px;">Or paste this link in your browser:</p>
-            <p class="reset-link">${resetUrl}</p>
-
-            <div class="warning">
-              <p><strong>⚠️ Important:</strong> This link expires in 1 hour. If you didn't request a password reset, please ignore this email and your password will remain unchanged.</p>
-            </div>
-
-            <p style="color: #64748b; font-size: 14px; margin-top: 30px;">
-              For security reasons, never share this link with anyone.
-            </p>
-          </div>
-
-          <div class="footer">
-            <p style="margin: 0;">
-              © 2024 SVVV_Notes<br>
-              <span>This is an automated message. Please do not reply.</span>
-            </p>
-          </div>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-
   try {
+    // Read the email template
+    const templatePath = path.join(__dirname, '../templates/password-reset-email.html');
+    let htmlContent = fs.readFileSync(templatePath, 'utf8');
+
+    // Replace placeholders with actual values
+    const resetUrl = `https://svvv-notes.onrender.com/reset-password/${resetToken}`;
+    const year = new Date().getFullYear();
+    
+    htmlContent = htmlContent
+      .replace(/{{APP_NAME}}/g, 'SVVV_Notes')
+      .replace(/{{USER_NAME}}/g, name)
+      .replace(/{{RESET_URL}}/g, resetUrl)
+      .replace(/{{EXPIRY_TIME}}/g, '60') // 1 hour in minutes
+      .replace(/{{YEAR}}/g, year)
+      .replace(/{{PRIVACY_URL}}/g, 'https://svvv-notes.onrender.com/privacy')
+      .replace(/{{CONTACT_URL}}/g, 'https://svvv-notes.onrender.com/contact')
+      .replace(/{{HELP_URL}}/g, 'https://svvv-notes.onrender.com/help');
+
+    const subject = 'Reset Your Password - SVVV_Notes';
+
     const response = await resend.emails.send({
       from: `SVVV_Notes <${SENDER_EMAIL}>`,
       to: toEmail,
