@@ -1,79 +1,166 @@
-const dns = require('dns');
+const { Resend } = require('resend');
 
-// Apply DNS fallback for development environment to prevent connection errors
-if (process.env.NODE_ENV !== 'production') {
-  try {
-    dns.setServers(['1.1.1.1', '8.8.8.8']);
-  } catch (e) {
-    console.warn('Could not set custom DNS servers for mail:', e.message);
-  }
-}
+// Initialize Resend with API key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
- * Sends a welcome email to the newly registered user using urBackend Transactional Mail API.
+ * Sends a welcome email to the newly registered user using Resend API.
  * @param {string} toEmail - The recipient's email address.
  * @param {string} name - The recipient's name or username.
  * @returns {Promise<boolean>} - Returns true if email sent successfully, false otherwise.
  */
 exports.sendWelcomeEmail = async (toEmail, name) => {
-  const apiKey = process.env.URBACKEND_API_KEY;
-  if (!apiKey) {
-    console.warn('Warning: URBACKEND_API_KEY is not defined in .env. Skipping welcome email.');
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    console.warn('Warning: RESEND_API_KEY is not defined in .env. Skipping welcome email.');
     return false;
   }
 
   const subject = 'Welcome to SVVV_Notes! 🚀';
+  
   const htmlContent = `
-    <div style="font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
-      <div style="text-align: center; margin-bottom: 25px;">
-        <h1 style="color: #4f46e5; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">SVVV_Notes</h1>
-        <p style="color: #64748b; margin: 5px 0 0 0; font-size: 14px; font-weight: 500;">Study smarter, together</p>
-      </div>
-      <div style="color: #1e293b; line-height: 1.6; font-size: 16px;">
-        <p>Hi <strong>${name}</strong>,</p>
-        <p>Welcome to <strong>SVVV_Notes</strong>! We are thrilled to have you join our student-built notes sharing community for SVVV students.</p>
-        <p>With SVVV_Notes, you can easily:</p>
-        <ul style="padding-left: 20px; margin: 15px 0;">
-          <li style="margin-bottom: 8px;">Browse and download course-specific syllabus, PYQs, and handwritten notes.</li>
-          <li style="margin-bottom: 8px;">Upload your own study materials to help your classmates.</li>
-          <li style="margin-bottom: 8px;">Upvote high-quality notes to make them easier for others to find.</li>
-        </ul>
-        <div style="text-align: center; margin: 35px 0;">
-          <a href="https://svvv-notes.onrender.com/notes" style="background-color: #4f46e5; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">Get Started</a>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1e293b; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .email-wrapper { border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background-color: #ffffff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+        .header { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); color: white; padding: 40px 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -1px; }
+        .header p { margin: 8px 0 0 0; font-size: 14px; font-weight: 500; opacity: 0.95; }
+        .content { padding: 40px 30px; }
+        .greeting { font-size: 18px; margin-bottom: 20px; }
+        .greeting strong { color: #4f46e5; }
+        .features { margin: 30px 0; }
+        .feature-item { display: flex; margin-bottom: 16px; align-items: flex-start; }
+        .feature-icon { font-size: 24px; margin-right: 12px; flex-shrink: 0; }
+        .feature-text { flex: 1; }
+        .feature-text strong { display: block; color: #1e293b; margin-bottom: 4px; }
+        .feature-text span { color: #64748b; font-size: 14px; }
+        .cta-section { text-align: center; margin: 40px 0; }
+        .cta-button { display: inline-block; background-color: #4f46e5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); transition: all 0.3s ease; }
+        .cta-button:hover { background-color: #4338ca; box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4); }
+        .divider { border: none; border-top: 1px solid #e2e8f0; margin: 30px 0; }
+        .footer { background-color: #f8fafc; padding: 20px 30px; text-align: center; color: #64748b; font-size: 12px; }
+        .footer strong { color: #4f46e5; }
+        @media (max-width: 600px) {
+          .container { padding: 10px; }
+          .content { padding: 25px 20px; }
+          .header { padding: 30px 20px; }
+          .header h1 { font-size: 24px; }
+          .cta-button { padding: 12px 24px; font-size: 14px; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="email-wrapper">
+          <div class="header">
+            <h1>SVVV_Notes</h1>
+            <p>Study Smarter, Together 📚</p>
+          </div>
+          
+          <div class="content">
+            <div class="greeting">
+              Hey <strong>${name}</strong>! 👋
+            </div>
+            
+            <p>Welcome to <strong>SVVV_Notes</strong>! We're thrilled to have you join our vibrant community of SVVV students dedicated to collaborative learning.</p>
+            
+            <div class="features">
+              <div class="feature-item">
+                <div class="feature-icon">📖</div>
+                <div class="feature-text">
+                  <strong>Browse Premium Study Materials</strong>
+                  <span>Access course-specific syllabi, previous year questions, handwritten notes, and more from your peers.</span>
+                </div>
+              </div>
+              
+              <div class="feature-item">
+                <div class="feature-icon">📤</div>
+                <div class="feature-text">
+                  <strong>Share Your Knowledge</strong>
+                  <span>Upload your study materials to help classmates ace their exams and build your reputation.</span>
+                </div>
+              </div>
+              
+              <div class="feature-item">
+                <div class="feature-icon">⭐</div>
+                <div class="feature-text">
+                  <strong>Rate & Discover Quality Content</strong>
+                  <span>Upvote the best notes to help others find the most helpful resources quickly.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="cta-section">
+              <a href="https://svvv-notes.onrender.com/notes" class="cta-button">Start Exploring Now</a>
+            </div>
+
+            <p style="margin-top: 30px; font-size: 14px; color: #64748b;">
+              Have questions? Need help? Our community is here to support you every step of the way!
+            </p>
+
+            <p style="margin-top: 20px;">
+              Happy studying!<br>
+              <strong style="color: #4f46e5;">The SVVV_Notes Team</strong>
+            </p>
+          </div>
+
+          <div class="footer">
+            <p style="margin: 0;">
+              © 2024 SVVV_Notes - Student Built, Student Focused<br>
+              <span>This is an automated message. Please don't reply directly to this email.</span>
+            </p>
+          </div>
         </div>
-        <p style="margin-top: 25px;">Happy studying,<br><span style="color: #4f46e5; font-weight: 600;">The SVVV_Notes Team</span></p>
       </div>
-      <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 30px 0;">
-      <p style="color: #94a3b8; font-size: 12px; text-align: center; margin: 0;">
-        This is an automated welcome email from SVVV_Notes. Please do not reply directly to this message.
-      </p>
-    </div>
+    </body>
+    </html>
+  `;
+
+  const plainTextContent = `
+Welcome to SVVV_Notes!
+
+Hi ${name},
+
+We're thrilled to have you join our community of SVVV students dedicated to collaborative learning.
+
+With SVVV_Notes, you can:
+- Browse course-specific syllabi, PYQs, handwritten notes, and more
+- Upload your own study materials to help classmates
+- Rate and upvote quality content to help others find the best resources
+
+Get Started: https://svvv-notes.onrender.com/notes
+
+Happy studying!
+The SVVV_Notes Team
+
+---
+This is an automated welcome email from SVVV_Notes. Please do not reply directly to this message.
   `;
 
   try {
-    const response = await fetch('https://api.ub.bitbros.in/api/mail/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey
-      },
-      body: JSON.stringify({
-        to: toEmail,
-        subject: subject,
-        html: htmlContent
-      })
+    const response = await resend.emails.send({
+      from: 'SVVV_Notes <onboarding@resend.dev>',
+      to: toEmail,
+      subject: subject,
+      html: htmlContent,
+      text: plainTextContent,
     });
 
-    if (response.ok) {
-      console.log(`Welcome email successfully sent to ${toEmail}`);
-      return true;
-    } else {
-      const errorText = await response.text();
-      console.error(`Failed to send welcome email via urBackend: ${response.status} ${response.statusText} - ${errorText}`);
+    if (response.error) {
+      console.error('Resend API error:', response.error);
       return false;
     }
+
+    console.log('Welcome email sent successfully to:', toEmail);
+    return true;
   } catch (error) {
-    console.error('Error occurred while sending welcome email:', error.message);
+    console.error('Error sending welcome email via Resend:', error.message);
     return false;
   }
 };
