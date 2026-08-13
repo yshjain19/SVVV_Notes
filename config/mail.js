@@ -114,8 +114,10 @@ exports.sendWelcomeEmail = async (toEmail, name) => {
               </div>
             </div>
 
-            <div class="cta-section">
-              <a href="https://svvv-notes.onrender.com/notes" class="cta-button">Start Exploring Now</a>
+            <div class="cta-section" style="text-align: center; margin: 40px 0;">
+              <a href="${siteUrl}/notes" class="cta-button" style="display: inline-block; background-color: #4f46e5; color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+                <span style="color: #ffffff !important; text-decoration: none;">Start Exploring Now</span>
+              </a>
             </div>
 
             <p style="margin-top: 30px; font-size: 14px; color: #64748b;">
