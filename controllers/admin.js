@@ -83,6 +83,7 @@ exports.dashboard = async (req, res, next) => {
 
     res.render("admin/dashboard", {
       pageTitle: "Admin Dashboard | SVVV_Notes",
+      metaDescription: "Administrative management and platform analytics dashboard for SVVV_Notes.",
       totalUsers,
       totalNotes,
       totalDownloads,

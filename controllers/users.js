@@ -5,7 +5,10 @@ const crypto = require("crypto");
 
 // Authentication views are deliberately kept thin; business logic is below.
 exports.renderRegister = (req, res) =>
-  res.render("users/register", { pageTitle: "Create account | SVVV_Notes" });
+  res.render("users/register", {
+    pageTitle: "Create Account | SVVV_Notes",
+    metaDescription: "Join SVVV_Notes - the student community for SVVV CSE notes sharing, previous year questions, and semester resources.",
+  });
 exports.register = async (req, res, next) => {
   const { username, fullName, email, password, course, semester, gender } = req.body;
   const user = new User({ username, fullName, email, course, semester, gender });
@@ -45,7 +48,10 @@ exports.register = async (req, res, next) => {
   }
 };
 exports.renderLogin = (req, res) =>
-  res.render("users/login", { pageTitle: "Sign in | SVVV_Notes" });
+  res.render("users/login", {
+    pageTitle: "Sign In | SVVV_Notes",
+    metaDescription: "Sign in to your SVVV_Notes account to upload notes, rate study materials, and access campus academic resources.",
+  });
 exports.login = (req, res) => {
   req.flash("success", `Welcome back, ${req.user.username}.`);
   // Continue the action that originally prompted the visitor to sign in.
@@ -70,7 +76,7 @@ exports.profile = async (req, res) => {
     return res
       .status(404)
       .render("error", {
-        pageTitle: "User not found | SVVV_Notes",
+        pageTitle: "User Not Found | SVVV_Notes",
         status: 404,
         message: "This student profile could not be found.",
       });
@@ -80,7 +86,8 @@ exports.profile = async (req, res) => {
     .populate("subject")
     .sort({ createdAt: -1 });
   res.render("users/profile", {
-    pageTitle: `${user.username} | SVVV_Notes`,
+    pageTitle: `${user.fullName || user.username} (@${user.username}) | SVVV_Notes`,
+    metaDescription: `View study notes and academic contributions shared by ${user.fullName || user.username} on SVVV_Notes.`,
     user,
     notes,
   });
@@ -94,6 +101,7 @@ exports.renderEditForm = async (req, res) => {
   }
   res.render("users/edit", {
     pageTitle: "Edit Profile | SVVV_Notes",
+    metaDescription: "Update your SVVV student profile information on SVVV_Notes.",
     user,
   });
 };
@@ -235,7 +243,10 @@ exports.verifyOTP = async (req, res, next) => {
  * Render forgot password form
  */
 exports.renderForgotPassword = (req, res) => {
-  res.render("users/forgot-password", { pageTitle: "Forgot Password | SVVV_Notes" });
+  res.render("users/forgot-password", {
+    pageTitle: "Forgot Password | SVVV_Notes",
+    metaDescription: "Reset your SVVV_Notes account password to regain access to study notes and resources.",
+  });
 };
 
 /**
@@ -305,6 +316,7 @@ exports.renderResetPassword = async (req, res, next) => {
 
     res.render("users/reset-password", {
       pageTitle: "Reset Password | SVVV_Notes",
+      metaDescription: "Enter a new secure password for your SVVV_Notes account.",
       token,
     });
   } catch (error) {

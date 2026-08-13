@@ -3,8 +3,22 @@ const { Resend } = require('resend');
 // Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-// Get sender email from environment
-const SENDER_EMAIL = process.env.SENDER_EMAIL || 'onboarding@resend.dev';
+/**
+ * Returns a valid sender email for Resend API.
+ * Free email providers (@gmail.com, etc.) cannot be verified directly on Resend,
+ * so we fall back to 'onboarding@resend.dev' with a reply-to header.
+ */
+function getSenderEmail() {
+  const configured = process.env.SENDER_EMAIL?.trim();
+  if (!configured || configured.endsWith('@gmail.com') || configured.endsWith('@yahoo.com') || configured.endsWith('@outlook.com') || configured.endsWith('@hotmail.com')) {
+    return 'onboarding@resend.dev';
+  }
+  return configured;
+}
+
+function getSiteUrl() {
+  return (process.env.SITE_URL || process.env.BASE_URL || 'https://svvv-notes.onrender.com').replace(/\/+$/, '');
+}
 
 /**
  * Sends a welcome email to the newly registered user using Resend API.
@@ -20,6 +34,7 @@ exports.sendWelcomeEmail = async (toEmail, name) => {
   }
 
   const subject = 'Welcome to SVVV_Notes! 🚀';
+  const siteUrl = getSiteUrl();
   
   const htmlContent = `
     <!DOCTYPE html>
@@ -147,16 +162,20 @@ This is an automated welcome email from SVVV_Notes. Please do not reply directly
   `;
 
   try {
+    const sender = getSenderEmail();
+    const replyTo = process.env.SENDER_EMAIL?.trim() || undefined;
+
     const response = await resend.emails.send({
-      from: `SVVV_Notes <${SENDER_EMAIL}>`,
+      from: `SVVV_Notes <${sender}>`,
       to: toEmail,
+      reply_to: replyTo,
       subject: subject,
       html: htmlContent,
       text: plainTextContent,
     });
 
     if (response.error) {
-      console.error('Resend API error:', response.error);
+      console.error('Resend API error sending welcome email:', response.error);
       return false;
     }
 
@@ -238,9 +257,13 @@ exports.sendOTPEmail = async (toEmail, name, otp) => {
   `;
 
   try {
+    const sender = getSenderEmail();
+    const replyTo = process.env.SENDER_EMAIL?.trim() || undefined;
+
     const response = await resend.emails.send({
-      from: `SVVV_Notes <${SENDER_EMAIL}>`,
+      from: `SVVV_Notes <${sender}>`,
       to: toEmail,
+      reply_to: replyTo,
       subject: subject,
       html: htmlContent,
     });
@@ -271,7 +294,8 @@ exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
     return false;
   }
 
-  const resetUrl = `https://svvv-notes.onrender.com/reset-password/${resetToken}`;
+  const siteUrl = getSiteUrl();
+  const resetUrl = `${siteUrl}/reset-password/${resetToken}`;
   const year = new Date().getFullYear();
   
   // Professional password reset email template
@@ -348,11 +372,9 @@ exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
                     This is an automated message from SVVV_Notes. Please do not reply to this email.
                 </p>
                 <div style="font-size: 11px; margin: 10px 0;">
-                    <a href="https://svvv-notes.onrender.com/privacy" style="color: #4f46e5; text-decoration: none;">Privacy Policy</a>
+                    <a href="${siteUrl}/about" style="color: #4f46e5; text-decoration: none;">About</a>
                     <span style="color: #cbd5e1;"> | </span>
-                    <a href="https://svvv-notes.onrender.com/contact" style="color: #4f46e5; text-decoration: none;">Contact Us</a>
-                    <span style="color: #cbd5e1;"> | </span>
-                    <a href="https://svvv-notes.onrender.com/help" style="color: #4f46e5; text-decoration: none;">Help Center</a>
+                    <a href="${siteUrl}/contact" style="color: #4f46e5; text-decoration: none;">Contact Us</a>
                 </div>
                 <p style="font-size: 11px; color: #94a3b8; margin: 12px 0 0 0;">
                     © ${year} SVVV_Notes. All rights reserved.
@@ -366,9 +388,13 @@ exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
   const subject = 'Reset Your Password - SVVV_Notes';
 
   try {
+    const sender = getSenderEmail();
+    const replyTo = process.env.SENDER_EMAIL?.trim() || undefined;
+
     const response = await resend.emails.send({
-      from: `SVVV_Notes <${SENDER_EMAIL}>`,
+      from: `SVVV_Notes <${sender}>`,
       to: toEmail,
+      reply_to: replyTo,
       subject: subject,
       html: htmlContent,
     });

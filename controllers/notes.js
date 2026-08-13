@@ -92,8 +92,16 @@ exports.index = async (req, res) => {
     .populate("uploadedBy")
     .populate("subject")
     .sort({ createdAt: -1 });
+  const queryDesc = q ? `matching "${q}"` : "";
+  const semDesc = semester ? `for Semester ${semester}` : "";
+  const filterDesc = [queryDesc, semDesc].filter(Boolean).join(" ");
+  const metaDescription = filterDesc
+    ? `Explore peer-shared SVVV CSE study notes ${filterDesc}. Download PDFs and lecture materials.`
+    : "Browse student-shared study notes, previous year question papers (PYQs), and lecture summaries for SVVV CSE.";
+
   res.render("notes/index", {
-    pageTitle: "Browse notes | SVVV_Notes",
+    pageTitle: "Browse Notes | SVVV_Notes",
+    metaDescription,
     notes,
     q,
     semester,
@@ -101,7 +109,10 @@ exports.index = async (req, res) => {
 };
 
 exports.renderNewForm = (req, res) =>
-  res.render("notes/new", { pageTitle: "Upload a note | SVVV_Notes" });
+  res.render("notes/new", {
+    pageTitle: "Upload a Note | SVVV_Notes",
+    metaDescription: "Share your handwritten study notes, lecture summaries, or PYQ solutions with fellow SVVV students.",
+  });
 
 exports.create = async (req, res) => {
   if (!req.file) {
@@ -143,11 +154,17 @@ exports.show = async (req, res) => {
     return res.redirect("/notes");
   }
 
+  const subjectName = note.subject && note.subject.name ? note.subject.name : (note.subject || "Engineering");
+  const metaDescription = note.description
+    ? `${note.description.substring(0, 155).trim()}...`
+    : `Download study notes for ${note.title} (${subjectName}) from the SVVV_Notes library.`;
+
   res.render("notes/show", {
-    pageTitle: `${note.title} | SVVV_Notes`,
+    pageTitle: `${note.title} | ${subjectName} Notes | SVVV_Notes`,
     note,
     pdfUrl: note.fileUrl,
-    metaDescription: note.description ? `${note.description.substring(0, 155)}...` : `Download study notes for ${note.title} from the SVVV_Notes library.`,
+    metaDescription,
+    pageType: "article",
   });
 };
 
@@ -158,7 +175,8 @@ exports.renderEditForm = async (req, res) => {
     return res.redirect("/notes");
   }
   res.render("notes/edit", {
-    pageTitle: "Edit note | SVVV_Notes",
+    pageTitle: `Edit ${note.title} | SVVV_Notes`,
+    metaDescription: `Edit and update notes details for ${note.title} on SVVV_Notes.`,
     note,
   });
 };

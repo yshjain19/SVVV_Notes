@@ -83,15 +83,48 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+function escapeXml(unsafe) {
+  if (typeof unsafe !== "string") return "";
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "&":
+        return "&amp;";
+      case "'":
+        return "&apos;";
+      case '"':
+        return "&quot;";
+      default:
+        return c;
+    }
+  });
+}
+
+function getBaseUrl(req) {
+  if (process.env.SITE_URL) {
+    return process.env.SITE_URL.replace(/\/+$/, "");
+  }
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL.replace(/\/+$/, "");
+  }
+  const forwardedProto = req.get("x-forwarded-proto");
+  const host = req.get("x-forwarded-host") || req.get("host") || "svvv-notes.onrender.com";
+  const protocol = forwardedProto || (process.env.NODE_ENV === "production" ? "https" : req.protocol || "https");
+  return `${protocol}://${host}`.replace(/\/+$/, "");
+}
+
 app.use((req, res, next) => {
   res.locals.currentUser = req.user;
   res.locals.success = req.flash("success");
   res.locals.error = req.flash("error");
-  res.locals.pageTitle = "SVVV_Notes";
-  const protocol = req.get("x-forwarded-proto") || req.protocol;
-  res.locals.siteUrl = `${protocol}://${req.get("host")}`;
-  // Shared template values: authentication, feedback toasts, and SEO URLs.
-  res.locals.canonical = `${res.locals.siteUrl}${req.path}`;
+  res.locals.pageTitle = "SVVV_Notes | Study smarter, together";
+  const siteUrl = getBaseUrl(req);
+  res.locals.siteUrl = siteUrl;
+  // Shared template values: authentication, feedback toasts, and SEO canonical URLs.
+  res.locals.canonical = `${siteUrl}${req.path === "/" ? "" : req.path}`;
   next();
 });
 
@@ -151,6 +184,7 @@ app.get("/", async (req, res, next) => {
 
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
+      metaDescription: "SVVV_Notes is a student-built study notes and academic resource sharing community for SVVV CSE students. Browse syllabus, PYQs, and handwritten notes.",
       latestNotes,
       activeSubjects,
     });
@@ -160,51 +194,42 @@ app.get("/", async (req, res, next) => {
 });
 
 app.get("/about", (req, res) =>
-  res.render("about", { pageTitle: "About | SVVV_Notes" }),
+  res.render("about", {
+    pageTitle: "About Us | SVVV_Notes",
+    metaDescription: "Learn more about SVVV_Notes, an independent peer-to-peer study platform built by students for Shri Vaishnav Vidyapeeth Vishwavidyalaya CSE learners.",
+  }),
 );
 
 app.get("/contact", (req, res) =>
-  res.render("contact", { pageTitle: "Contact | SVVV_Notes" }),
+  res.render("contact", {
+    pageTitle: "Contact Us | SVVV_Notes",
+    metaDescription: "Have questions, feedback, or suggestions for SVVV_Notes? Get in touch with our student team.",
+  }),
 );
-
-function escapeXml(unsafe) {
-  if (typeof unsafe !== "string") return "";
-  return unsafe.replace(/[<>&'"]/g, (c) => {
-    switch (c) {
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case "&":
-        return "&amp;";
-      case "'":
-        return "&apos;";
-      case '"':
-        return "&quot;";
-      default:
-        return c;
-    }
-  });
-}
-
-function getBaseUrl(req) {
-  if (process.env.SITE_URL) {
-    return process.env.SITE_URL.replace(/\/+$/, "");
-  }
-  if (process.env.BASE_URL) {
-    return process.env.BASE_URL.replace(/\/+$/, "");
-  }
-  const forwardedProto = req.get("x-forwarded-proto");
-  const host = req.get("x-forwarded-host") || req.get("host") || "svvv-notes.onrender.com";
-  const protocol = forwardedProto || (process.env.NODE_ENV === "production" ? "https" : req.protocol || "https");
-  return `${protocol}://${host}`.replace(/\/+$/, "");
-}
 
 app.get("/robots.txt", (req, res) => {
   const baseUrl = getBaseUrl(req);
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.set("Cache-Control", "public, max-age=86400");
-  res.send(`User-agent: *\nAllow: /\n\nSitemap: ${baseUrl}/sitemap.xml\n`);
+  res.send(
+`User-agent: *
+Allow: /
+Allow: /css/
+Allow: /js/
+Allow: /images/
+Allow: /favicon.ico
+Allow: /favicon.png
+Allow: /favicon-48x48.png
+Allow: /logo.png
+Allow: /apple-touch-icon.png
+Allow: /site.webmanifest
+Disallow: /admin/
+Disallow: /reset-password/
+Disallow: /verify-otp
+
+Sitemap: ${baseUrl}/sitemap.xml
+`
+  );
 });
 
 app.get("/sitemap.xml", async (req, res) => {
@@ -214,24 +239,24 @@ app.get("/sitemap.xml", async (req, res) => {
     const User = require("./models/user");
 
     // Fetch notes and active note uploaders
-    const notesPromise = Note.find({}, "_id updatedAt createdAt").sort({ updatedAt: -1 }).lean().catch(() => []);
+    const notesPromise = Note.find({}, "_id title updatedAt createdAt").sort({ updatedAt: -1 }).lean().catch(() => []);
     const activeUserIdsPromise = Note.distinct("uploadedBy").catch(() => []);
 
     const [notes, activeUserIds] = await Promise.all([notesPromise, activeUserIdsPromise]);
 
     let users = [];
     if (activeUserIds && activeUserIds.length > 0) {
-      users = await User.find({ _id: { $in: activeUserIds } }, "_id updatedAt createdAt").lean().catch(() => []);
+      users = await User.find({ _id: { $in: activeUserIds } }, "_id username fullName updatedAt createdAt").lean().catch(() => []);
     }
 
     const now = new Date().toISOString();
 
     // Static core pages
     const staticPages = [
-      { loc: `${baseUrl}/`, changefreq: "daily", priority: "1.0", lastmod: now },
-      { loc: `${baseUrl}/notes`, changefreq: "daily", priority: "0.9", lastmod: now },
-      { loc: `${baseUrl}/about`, changefreq: "monthly", priority: "0.6" },
-      { loc: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.6" },
+      { loc: `${baseUrl}/`, changefreq: "daily", priority: "1.0", lastmod: now, imageTitle: "SVVV_Notes Official Home" },
+      { loc: `${baseUrl}/notes`, changefreq: "daily", priority: "0.9", lastmod: now, imageTitle: "SVVV_Notes Study Library" },
+      { loc: `${baseUrl}/about`, changefreq: "monthly", priority: "0.6", imageTitle: "About SVVV_Notes" },
+      { loc: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.6", imageTitle: "Contact SVVV_Notes" },
     ];
 
     // Dynamic individual note pages
@@ -242,6 +267,7 @@ app.get("/sitemap.xml", async (req, res) => {
         changefreq: "weekly",
         priority: "0.8",
         lastmod: modDate ? new Date(modDate).toISOString() : undefined,
+        imageTitle: note.title ? `${note.title} - SVVV_Notes` : "SVVV Study Note",
       };
     });
 
@@ -253,13 +279,14 @@ app.get("/sitemap.xml", async (req, res) => {
         changefreq: "weekly",
         priority: "0.5",
         lastmod: modDate ? new Date(modDate).toISOString() : undefined,
+        imageTitle: `${user.fullName || user.username || 'Student'} Profile - SVVV_Notes`,
       };
     });
 
     const allPages = [...staticPages, ...notePages, ...userPages];
 
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
 
     for (const page of allPages) {
       xml += `  <url>\n`;
@@ -273,6 +300,11 @@ app.get("/sitemap.xml", async (req, res) => {
       if (page.priority) {
         xml += `    <priority>${page.priority}</priority>\n`;
       }
+      xml += `    <image:image>\n`;
+      xml += `      <image:loc>${escapeXml(baseUrl)}/images/logo.png</image:loc>\n`;
+      xml += `      <image:title>${escapeXml(page.imageTitle || "SVVV_Notes")}</image:title>\n`;
+      xml += `      <image:caption>SVVV_Notes student study notes platform</image:caption>\n`;
+      xml += `    </image:image>\n`;
       xml += `  </url>\n`;
     }
 
@@ -285,7 +317,7 @@ app.get("/sitemap.xml", async (req, res) => {
   } catch (error) {
     console.error("Failed to generate dynamic sitemap:", error);
     // Fail-safe XML response to guarantee Google Search Console never receives a 500 error
-    const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${escapeXml(baseUrl)}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/notes</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/about</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/contact</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n</urlset>\n`;
+    const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n  <url>\n    <loc>${escapeXml(baseUrl)}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n    <image:image>\n      <image:loc>${escapeXml(baseUrl)}/images/logo.png</image:loc>\n      <image:title>SVVV_Notes</image:title>\n    </image:image>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/notes</loc>\n    <changefreq>daily</changefreq>\n    <priority>0.9</priority>\n    <image:image>\n      <image:loc>${escapeXml(baseUrl)}/images/logo.png</image:loc>\n      <image:title>SVVV_Notes Browse</image:title>\n    </image:image>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/about</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n  <url>\n    <loc>${escapeXml(baseUrl)}/contact</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.6</priority>\n  </url>\n</urlset>\n`;
     res.set("Content-Type", "application/xml; charset=utf-8");
     res.set("X-Robots-Tag", "all");
     return res.status(200).send(fallbackXml);
@@ -295,6 +327,7 @@ app.get("/sitemap.xml", async (req, res) => {
 app.all("*", (req, res) =>
   res.status(404).render("error", {
     pageTitle: "Page not found | SVVV_Notes",
+    metaDescription: "The page you are looking for has moved or does not exist on SVVV_Notes.",
     status: 404,
     message: "The page you are looking for has moved or does not exist.",
   }),
@@ -304,6 +337,7 @@ app.use((err, req, res, next) => {
   console.error(err);
   res.status(err.status || 500).render("error", {
     pageTitle: "Something went wrong | SVVV_Notes",
+    metaDescription: "An error occurred while processing your request on SVVV_Notes.",
     status: err.status || 500,
     message: err.message || "Please try again in a moment.",
   });

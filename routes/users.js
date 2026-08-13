@@ -48,7 +48,13 @@ router
 
 router
   .route("/verify-otp")
-  .get((req, res) => res.render("users/verify-otp", { pageTitle: "Verify Email | SVVV_Notes", email: req.query.email || "" }))
+  .get((req, res) =>
+    res.render("users/verify-otp", {
+      pageTitle: "Verify Email | SVVV_Notes",
+      metaDescription: "Verify your email address to access your SVVV_Notes account and resources.",
+      email: req.query.email || "",
+    }),
+  )
   .post(catchAsync(users.verifyOTP));
 
 // ============ PASSWORD RESET ============

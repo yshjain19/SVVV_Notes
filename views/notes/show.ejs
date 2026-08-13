@@ -1,8 +1,15 @@
 <% layout('layouts/boilerplate') %>
 <section class="detail-wrap">
   <div class="container">
+    <nav aria-label="breadcrumb" class="mb-3">
+      <ol class="breadcrumb mb-0" style="font-size: 0.85rem;">
+        <li class="breadcrumb-item"><a href="/" class="text-decoration-none text-secondary">Home</a></li>
+        <li class="breadcrumb-item"><a href="/notes" class="text-decoration-none text-secondary">Notes</a></li>
+        <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page"><%= note.title %></li>
+      </ol>
+    </nav>
     <a class="back-link mb-4 d-inline-flex" href="/notes"
-      ><i class="bi bi-arrow-left"></i> All notes</a
+      ><i class="bi bi-arrow-left"></i> Back to all notes</a
     >
     <div class="row g-4">
       <div class="col-lg-8">

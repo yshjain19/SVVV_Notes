@@ -5,45 +5,263 @@
   <meta name="google-site-verification" content="n0TPgwEvsHs1AsQA1nlncfBbwXJfuoEjprBGAdHyxMU" />
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>
-    <%= pageTitle %>
-  </title>
-  <!-- Favicon & Brand Icons (Google Search & Multi-Device Compatible) -->
+  <title><%= typeof pageTitle !== 'undefined' && pageTitle ? pageTitle : 'SVVV_Notes | Study smarter, together' %></title>
+
+  <!-- Favicon & Official Brand Icons -->
+  <link rel="icon" type="image/png" href="/images/logo.png" />
   <link rel="icon" type="image/png" sizes="48x48" href="/images/favicon-48x48.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/images/logo.png" />
+  <link rel="icon" type="image/png" sizes="512x512" href="/images/logo.png" />
   <link rel="icon" type="image/svg+xml" href="/images/logo-icon.svg" />
-  <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
   <link rel="manifest" href="/site.webmanifest" />
-  <meta name="description"
-    content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'SVVV_Notes is a student-built study notes sharing community for SVVV CSE students.' %>" />
-  <meta name="keywords" content="SVVV_Notes, SVVV Notes, SVVV, svvv_notes, svvvnotes, college notes, study notes, SVVV CSE, Shri Vaishnav Vidyapeeth Vidyalaya" />
+  <meta name="theme-color" content="#4f46e5" />
+  <meta name="application-name" content="SVVV_Notes" />
+  <meta name="apple-mobile-web-app-title" content="SVVV_Notes" />
+
+  <!-- Robots & Search Engine Crawler Directives -->
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+  <meta name="author" content="SVVV_Notes Community & Yash Jain" />
+  <meta name="publisher" content="SVVV_Notes" />
+  <meta name="language" content="English" />
+  <meta name="revisit-after" content="1 days" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <!-- Canonical & SEO Meta -->
+  <link rel="canonical" href="<%= typeof canonical !== 'undefined' && canonical ? canonical : siteUrl %>" />
+  <meta name="description" content="<%= typeof metaDescription !== 'undefined' && metaDescription ? metaDescription : 'SVVV_Notes is a student-built study notes sharing community for SVVV CSE students. Browse syllabus, PYQs, and handwritten notes.' %>" />
+  <meta name="keywords" content="SVVV_Notes, SVVV Notes, SVVV, svvv_notes, svvvnotes, college notes, study notes, SVVV CSE, Shri Vaishnav Vidyapeeth Vishwavidyalaya, engineering notes, study material, CSE notes, BTech notes, PYQs, exam notes" />
+
+  <!-- Open Graph / Facebook -->
   <meta property="og:site_name" content="SVVV_Notes" />
-  <meta property="og:title" content="<%= pageTitle %>" />
-  <meta property="og:description"
-    content="<%= typeof metaDescription !== 'undefined' ? metaDescription : 'Share, discover, and study better with SVVV classmates.' %>" />
+  <meta property="og:title" content="<%= typeof pageTitle !== 'undefined' && pageTitle ? pageTitle : 'SVVV_Notes | Study smarter, together' %>" />
+  <meta property="og:description" content="<%= typeof metaDescription !== 'undefined' && metaDescription ? metaDescription : 'Share, discover, and study better with SVVV classmates.' %>" />
+  <meta property="og:type" content="<%= typeof pageType !== 'undefined' && pageType ? pageType : 'website' %>" />
+  <meta property="og:url" content="<%= typeof canonical !== 'undefined' && canonical ? canonical : siteUrl %>" />
+  <meta property="og:image" content="<%= siteUrl %>/images/logo.png" />
+  <meta property="og:image:secure_url" content="<%= siteUrl %>/images/logo.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="512" />
+  <meta property="og:image:height" content="512" />
+  <meta property="og:image:alt" content="SVVV_Notes Official Logo" />
+  <meta property="og:locale" content="en_IN" />
+
+  <!-- Twitter / X Cards -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta property="og:image" content="<%= siteUrl %>/images/favicon-512x512.jpg" />
-  <meta property="og:image:alt" content="SVVV_Notes logo" />
-  <link rel="canonical" href="<%= typeof canonical !== 'undefined' ? canonical : '' %>" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <meta name="twitter:title" content="<%= typeof pageTitle !== 'undefined' && pageTitle ? pageTitle : 'SVVV_Notes | Study smarter, together' %>" />
+  <meta name="twitter:description" content="<%= typeof metaDescription !== 'undefined' && metaDescription ? metaDescription : 'Share, discover, and study better with SVVV classmates.' %>" />
+  <meta name="twitter:image" content="<%= siteUrl %>/images/logo.png" />
+  <meta name="twitter:image:alt" content="SVVV_Notes Official Logo" />
+
+  <!-- Performance & Stylesheets -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
   <link
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
     rel="stylesheet" />
   <link rel="stylesheet" href="/css/app.css" />
-  <script type="application/ld+json">
-    {
+
+  <!-- Structured Data (JSON-LD) -->
+  <%
+    const currentUrl = typeof canonical !== 'undefined' && canonical ? canonical : siteUrl;
+    const isHomePage = currentUrl === siteUrl || currentUrl === `${siteUrl}/`;
+
+    const structuredData = {
       "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "SVVV_Notes",
-      "url": "<%= siteUrl %>",
-      "logo": "<%= siteUrl %>/favicon.png",
-      "sameAs": [],
-      "description": "Student-built academic notes sharing for SVVV CSE students."
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": `${siteUrl}/#website`,
+          "url": siteUrl,
+          "name": "SVVV_Notes",
+          "alternateName": ["SVVV Notes", "SVVVNotes"],
+          "description": "Student-built study notes sharing community for SVVV CSE students.",
+          "inLanguage": "en-IN",
+          "publisher": {
+            "@id": `${siteUrl}/#organization`
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": `${siteUrl}/notes?q={search_term_string}`
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": `${siteUrl}/#organization`,
+          "name": "SVVV_Notes",
+          "url": siteUrl,
+          "logo": {
+            "@type": "ImageObject",
+            "url": `${siteUrl}/images/logo.png`,
+            "contentUrl": `${siteUrl}/images/logo.png`,
+            "width": 512,
+            "height": 512,
+            "caption": "SVVV_Notes Official Logo"
+          },
+          "image": `${siteUrl}/images/logo.png`,
+          "description": "Student-built academic notes sharing community for SVVV CSE students."
+        }
+      ]
+    };
+
+    // Breadcrumbs Schema
+    const breadcrumbItems = [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": `${siteUrl}/`
+      }
+    ];
+
+    if (typeof note !== 'undefined' && note && note._id) {
+      breadcrumbItems.push(
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Browse Notes",
+          "item": `${siteUrl}/notes`
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": note.title || "Note Details",
+          "item": `${siteUrl}/notes/${note._id}`
+        }
+      );
+    } else if (currentUrl.includes('/notes')) {
+      breadcrumbItems.push({
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Browse Notes",
+        "item": `${siteUrl}/notes`
+      });
+    } else if (currentUrl.includes('/about')) {
+      breadcrumbItems.push({
+        "@type": "ListItem",
+        "position": 2,
+        "name": "About Us",
+        "item": `${siteUrl}/about`
+      });
+    } else if (currentUrl.includes('/contact')) {
+      breadcrumbItems.push({
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Contact Us",
+        "item": `${siteUrl}/contact`
+      });
+    } else if (typeof user !== 'undefined' && user && user._id) {
+      breadcrumbItems.push({
+        "@type": "ListItem",
+        "position": 2,
+        "name": user.fullName || user.username || "Student Profile",
+        "item": `${siteUrl}/users/${user._id}`
+      });
     }
+
+    if (breadcrumbItems.length > 1) {
+      structuredData["@graph"].push({
+        "@type": "BreadcrumbList",
+        "@id": `${currentUrl}#breadcrumb`,
+        "itemListElement": breadcrumbItems
+      });
+    }
+
+    // FAQPage Schema on Homepage for Rich FAQ snippets
+    if (isHomePage) {
+      structuredData["@graph"].push({
+        "@type": "FAQPage",
+        "@id": `${siteUrl}/#faq`,
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is SVVV_Notes free?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes! The platform is 100% free. It is a student-built project aimed at making learning resources more accessible for everyone in our college."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I upload notes?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Create an account or log in, click the Upload link in the navbar, input the note title, specify the subject name, select your course branch and semester, and upload your PDF file."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Are notes verified?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "All notes undergo curation and peer review. Upvotes from other students help highlight high-quality, correct, and relevant resources."
+            }
+          }
+        ]
+      });
+    }
+
+    // Note Detail Page Schema
+    if (typeof note !== 'undefined' && note && note._id) {
+      const noteSubject = (note.subject && note.subject.name) ? note.subject.name : (typeof note.subject === 'string' ? note.subject : 'Engineering');
+      const noteAuthor = (note.uploadedBy && note.uploadedBy.username) ? note.uploadedBy.username : 'SVVV Student';
+      const noteCreated = new Date(note.createdAt || Date.now()).toISOString();
+      const noteUpdated = new Date(note.updatedAt || note.createdAt || Date.now()).toISOString();
+
+      structuredData["@graph"].push({
+        "@type": ["Article", "LearningResource"],
+        "@id": `${siteUrl}/notes/${note._id}#article`,
+        "mainEntityOfPage": `${siteUrl}/notes/${note._id}`,
+        "headline": note.title || "SVVV Study Note",
+        "name": note.title || "SVVV Study Note",
+        "description": (typeof metaDescription !== 'undefined' && metaDescription) ? metaDescription : (note.description || "SVVV CSE Study Note"),
+        "url": `${siteUrl}/notes/${note._id}`,
+        "learningResourceType": "Study Notes",
+        "educationalLevel": "Undergraduate Engineering",
+        "about": noteSubject,
+        "keywords": `${noteSubject}, Semester ${note.semester || ''}, ${note.course || 'B.Tech CSE'}, SVVV Notes, Study Material`,
+        "datePublished": noteCreated,
+        "dateModified": noteUpdated,
+        "inLanguage": "en",
+        "publisher": {
+          "@id": `${siteUrl}/#organization`
+        },
+        "author": {
+          "@type": "Person",
+          "name": noteAuthor
+        },
+        "image": `${siteUrl}/images/logo.png`
+      });
+    }
+
+    // Notes Collection Page Schema
+    if (currentUrl.endsWith('/notes') && typeof notes !== 'undefined' && Array.isArray(notes)) {
+      structuredData["@graph"].push({
+        "@type": "CollectionPage",
+        "@id": `${siteUrl}/notes#collection`,
+        "url": `${siteUrl}/notes`,
+        "name": "SVVV CSE Notes Library",
+        "description": "Browse and download student-shared study notes, previous year question papers (PYQs), and lecture summaries for SVVV CSE.",
+        "isPartOf": {
+          "@id": `${siteUrl}/#website`
+        }
+      });
+    }
+  %>
+  <script type="application/ld+json">
+  <%- JSON.stringify(structuredData, null, 2) %>
   </script>
 </head>
 
