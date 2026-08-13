@@ -6,7 +6,10 @@ Allow: /images/
 Allow: /favicon.ico
 Allow: /favicon.png
 Allow: /favicon-48x48.png
+Allow: /favicon-32x32.png
+Allow: /favicon-16x16.png
 Allow: /logo.png
+Allow: /logo-icon.svg
 Allow: /apple-touch-icon.png
 Allow: /site.webmanifest
 Disallow: /admin/
