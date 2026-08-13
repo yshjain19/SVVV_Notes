@@ -1,16 +1,25 @@
-const { Resend } = require('resend');
-
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+const nodemailer = require('nodemailer');
+let ResendClass;
+try {
+  ResendClass = require('resend').Resend;
+} catch (e) {
+  // Resend optional fallback
+}
 
 /**
  * Returns a valid sender email for Resend API.
  * Free email providers (@gmail.com, etc.) cannot be verified directly on Resend,
  * so we fall back to 'onboarding@resend.dev' with a reply-to header.
  */
-function getSenderEmail() {
+function getResendSenderEmail() {
   const configured = process.env.SENDER_EMAIL?.trim();
-  if (!configured || configured.endsWith('@gmail.com') || configured.endsWith('@yahoo.com') || configured.endsWith('@outlook.com') || configured.endsWith('@hotmail.com')) {
+  if (
+    !configured ||
+    configured.endsWith('@gmail.com') ||
+    configured.endsWith('@yahoo.com') ||
+    configured.endsWith('@outlook.com') ||
+    configured.endsWith('@hotmail.com')
+  ) {
     return 'onboarding@resend.dev';
   }
   return configured;
@@ -21,21 +30,96 @@ function getSiteUrl() {
 }
 
 /**
- * Sends a welcome email to the newly registered user using Resend API.
- * @param {string} toEmail - The recipient's email address.
- * @param {string} name - The recipient's name or username.
- * @returns {Promise<boolean>} - Returns true if email sent successfully, false otherwise.
+ * Core email delivery dispatcher.
+ * Supports:
+ * 1. Gmail SMTP / Custom SMTP via Nodemailer (recommended for sending to any email address)
+ * 2. Resend API via RESEND_API_KEY
  */
-exports.sendWelcomeEmail = async (toEmail, name) => {
-  const resendApiKey = process.env.RESEND_API_KEY;
-  if (!resendApiKey) {
-    console.warn('Warning: RESEND_API_KEY is not defined in .env. Skipping welcome email.');
-    return false;
+async function sendMail({ to, subject, html, text }) {
+  const gmailUser = process.env.GMAIL_USER || process.env.SMTP_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS;
+
+  // 1. Prioritize Gmail SMTP / Nodemailer if configured
+  if (gmailUser && gmailPass) {
+    try {
+      const transporter = nodemailer.createTransport({
+        service: process.env.SMTP_SERVICE || 'gmail',
+        host: process.env.SMTP_HOST || undefined,
+        port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : undefined,
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: gmailUser,
+          pass: gmailPass,
+        },
+      });
+
+      const info = await transporter.sendMail({
+        from: `SVVV_Notes <${gmailUser}>`,
+        to,
+        replyTo: process.env.SENDER_EMAIL || gmailUser,
+        subject,
+        html,
+        text,
+      });
+
+      console.log(`[Email Delivered via SMTP] To: ${to}, MessageId: ${info.messageId}`);
+      return true;
+    } catch (smtpErr) {
+      console.error(`[SMTP Delivery Failed] ${smtpErr.message}. Attempting Resend fallback...`);
+    }
   }
 
+  // 2. Resend API
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey && ResendClass) {
+    try {
+      const resend = new ResendClass(resendApiKey);
+      const sender = getResendSenderEmail();
+      const replyTo = process.env.SENDER_EMAIL?.trim() || undefined;
+
+      const response = await resend.emails.send({
+        from: `SVVV_Notes <${sender}>`,
+        to,
+        reply_to: replyTo,
+        subject,
+        html,
+        text,
+      });
+
+      if (response.error) {
+        console.error(`[Resend API Error]:`, response.error);
+        if (response.error.message && response.error.message.includes('only send testing emails')) {
+          console.warn(
+            `\n⚠️ [ACTION REQUIRED ON RESEND]: Resend free tier without a verified custom domain only delivers to the owner's email (${to}).\nTo send to ANY student email address on production, either:\n1. Verify a custom domain at https://resend.com/domains\n2. OR add GMAIL_USER and GMAIL_APP_PASSWORD to your Render Environment Variables.\n`
+          );
+        }
+        return false;
+      }
+
+      console.log(`[Email Delivered via Resend] To: ${to}, ID: ${response.data?.id}`);
+      return true;
+    } catch (resendErr) {
+      console.error(`[Resend Exception]:`, resendErr.message);
+      return false;
+    }
+  }
+
+  console.warn(
+    `[Email Skipped] Neither Gmail SMTP credentials (GMAIL_USER & GMAIL_APP_PASSWORD) nor RESEND_API_KEY are configured in environment variables.`
+  );
+  return false;
+}
+
+/**
+ * Sends a welcome email to the newly registered user.
+ * @param {string} toEmail - The recipient's email address.
+ * @param {string} name - The recipient's name or username.
+ * @returns {Promise<boolean>}
+ */
+exports.sendWelcomeEmail = async (toEmail, name) => {
   const subject = 'Welcome to SVVV_Notes! 🚀';
   const siteUrl = getSiteUrl();
-  
+
   const htmlContent = `
     <!DOCTYPE html>
     <html lang="en">
@@ -59,7 +143,7 @@ exports.sendWelcomeEmail = async (toEmail, name) => {
         .feature-text strong { display: block; color: #1e293b; margin-bottom: 4px; }
         .feature-text span { color: #64748b; font-size: 14px; }
         .cta-section { text-align: center; margin: 40px 0; }
-        .cta-button { display: inline-block; background-color: #4f46e5; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); transition: all 0.3s ease; }
+        .cta-button { display: inline-block; background-color: #4f46e5; color: #ffffff !important; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); transition: all 0.3s ease; }
         .cta-button:hover { background-color: #4338ca; box-shadow: 0 6px 16px rgba(79, 70, 229, 0.4); }
         .divider { border: none; border-top: 1px solid #e2e8f0; margin: 30px 0; }
         .footer { background-color: #f8fafc; padding: 20px 30px; text-align: center; color: #64748b; font-size: 12px; }
@@ -77,8 +161,8 @@ exports.sendWelcomeEmail = async (toEmail, name) => {
       <div class="container">
         <div class="email-wrapper">
           <div class="header">
-            <h1>SVVV_Notes</h1>
-            <p>Study Smarter, Together 📚</p>
+            <h1 style="color: #ffffff; margin: 0;">SVVV_Notes</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0 0;">Study Smarter, Together 📚</p>
           </div>
           
           <div class="content">
@@ -132,7 +216,7 @@ exports.sendWelcomeEmail = async (toEmail, name) => {
 
           <div class="footer">
             <p style="margin: 0;">
-              © 2024 SVVV_Notes - Student Built, Student Focused<br>
+              © ${new Date().getFullYear()} SVVV_Notes - Student Built, Student Focused<br>
               <span>This is an automated message. Please don't reply directly to this email.</span>
             </p>
           </div>
@@ -154,39 +238,21 @@ With SVVV_Notes, you can:
 - Upload your own study materials to help classmates
 - Rate and upvote quality content to help others find the best resources
 
-Get Started: https://svvv-notes.onrender.com/notes
+Get Started: ${siteUrl}/notes
 
 Happy studying!
 The SVVV_Notes Team
 
 ---
-This is an automated welcome email from SVVV_Notes. Please do not reply directly to this message.
+This is an automated welcome email from SVVV_Notes.
   `;
 
-  try {
-    const sender = getSenderEmail();
-    const replyTo = process.env.SENDER_EMAIL?.trim() || undefined;
-
-    const response = await resend.emails.send({
-      from: `SVVV_Notes <${sender}>`,
-      to: toEmail,
-      reply_to: replyTo,
-      subject: subject,
-      html: htmlContent,
-      text: plainTextContent,
-    });
-
-    if (response.error) {
-      console.error('Resend API error sending welcome email:', response.error);
-      return false;
-    }
-
-    console.log('Welcome email sent successfully to:', toEmail);
-    return true;
-  } catch (error) {
-    console.error('Error sending welcome email via Resend:', error.message);
-    return false;
-  }
+  return await sendMail({
+    to: toEmail,
+    subject,
+    html: htmlContent,
+    text: plainTextContent,
+  });
 };
 
 /**
@@ -197,11 +263,6 @@ This is an automated welcome email from SVVV_Notes. Please do not reply directly
  * @returns {Promise<boolean>}
  */
 exports.sendOTPEmail = async (toEmail, name, otp) => {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('Warning: RESEND_API_KEY is not defined in .env. Skipping OTP email.');
-    return false;
-  }
-
   const subject = 'Verify Your Email - OTP Code';
   const htmlContent = `
     <!DOCTYPE html>
@@ -229,7 +290,7 @@ exports.sendOTPEmail = async (toEmail, name, otp) => {
       <div class="container">
         <div class="email-wrapper">
           <div class="header">
-            <h1>Email Verification</h1>
+            <h1 style="color: #ffffff; margin: 0;">Email Verification</h1>
           </div>
           
           <div class="content">
@@ -248,7 +309,7 @@ exports.sendOTPEmail = async (toEmail, name, otp) => {
 
           <div class="footer">
             <p style="margin: 0;">
-              © 2024 SVVV_Notes<br>
+              © ${new Date().getFullYear()} SVVV_Notes<br>
               <span>This is an automated message. Please do not reply.</span>
             </p>
           </div>
@@ -258,29 +319,12 @@ exports.sendOTPEmail = async (toEmail, name, otp) => {
     </html>
   `;
 
-  try {
-    const sender = getSenderEmail();
-    const replyTo = process.env.SENDER_EMAIL?.trim() || undefined;
-
-    const response = await resend.emails.send({
-      from: `SVVV_Notes <${sender}>`,
-      to: toEmail,
-      reply_to: replyTo,
-      subject: subject,
-      html: htmlContent,
-    });
-
-    if (response.error) {
-      console.error('Resend OTP email error:', response.error);
-      return false;
-    }
-
-    console.log('OTP email sent successfully to:', toEmail);
-    return true;
-  } catch (error) {
-    console.error('Error sending OTP email:', error.message);
-    return false;
-  }
+  return await sendMail({
+    to: toEmail,
+    subject,
+    html: htmlContent,
+    text: `Hi ${name},\n\nYour OTP code is: ${otp}\nThis code expires in 10 minutes.\n\nSVVV_Notes`,
+  });
 };
 
 /**
@@ -291,16 +335,10 @@ exports.sendOTPEmail = async (toEmail, name, otp) => {
  * @returns {Promise<boolean>}
  */
 exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('Warning: RESEND_API_KEY is not defined in .env. Skipping password reset email.');
-    return false;
-  }
-
   const siteUrl = getSiteUrl();
   const resetUrl = `${siteUrl}/reset-password/${resetToken}`;
   const year = new Date().getFullYear();
-  
-  // Professional password reset email template
+
   const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -332,8 +370,8 @@ exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
 
                 <!-- CTA Button -->
                 <div style="text-align: center; margin: 35px 0;">
-                    <a href="${resetUrl}" style="display: inline-block; background-color: #4f46e5; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
-                        Reset Password
+                    <a href="${resetUrl}" style="display: inline-block; background-color: #4f46e5; color: #ffffff !important; text-decoration: none; padding: 14px 40px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);">
+                        <span style="color: #ffffff !important; text-decoration: none;">Reset Password</span>
                     </a>
                 </div>
 
@@ -389,27 +427,10 @@ exports.sendPasswordResetEmail = async (toEmail, name, resetToken) => {
 
   const subject = 'Reset Your Password - SVVV_Notes';
 
-  try {
-    const sender = getSenderEmail();
-    const replyTo = process.env.SENDER_EMAIL?.trim() || undefined;
-
-    const response = await resend.emails.send({
-      from: `SVVV_Notes <${sender}>`,
-      to: toEmail,
-      reply_to: replyTo,
-      subject: subject,
-      html: htmlContent,
-    });
-
-    if (response.error) {
-      console.error('Resend password reset email error:', response.error);
-      return false;
-    }
-
-    console.log('✅ Password reset email sent successfully to:', toEmail);
-    return true;
-  } catch (error) {
-    console.error('❌ Error sending password reset email:', error.message);
-    return false;
-  }
+  return await sendMail({
+    to: toEmail,
+    subject,
+    html: htmlContent,
+    text: `Hello ${name},\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in 60 minutes.\n\nSVVV_Notes`,
+  });
 };
