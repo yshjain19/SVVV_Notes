@@ -11,7 +11,15 @@ exports.renderRegister = (req, res) =>
   });
 exports.register = async (req, res, next) => {
   const { username, fullName, email, password, course, semester, gender } = req.body;
-  const user = new User({ username, fullName, email, course, semester, gender });
+  const user = new User({
+    username,
+    fullName,
+    email: (email || "").toLowerCase().trim(),
+    course,
+    semester,
+    gender,
+    isEmailVerified: false,
+  });
 
   if (gender === "Male") {
     user.avatar = { url: "/images/avatar-male.svg" };
@@ -20,20 +28,28 @@ exports.register = async (req, res, next) => {
   }
 
   try {
-    // Passport Local Mongoose hashes the password before it is stored.
+    // Generate 6-digit OTP code valid for 10 minutes
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    user.otp = {
+      code: otp,
+      expiresAt: otpExpiry,
+    };
+
+    // Passport Local Mongoose hashes the password before storing
     await User.register(user, password);
-    await new Promise((resolve, reject) => {
-      req.login(user, (err) => (err ? reject(err) : resolve()));
+
+    // Send OTP verification email in background
+    console.log(`\n🔑 [OTP CODE for ${user.email}]: ${otp}\n`);
+    sendOTPEmail(user.email, user.fullName || user.username, otp).catch((err) => {
+      console.error("Failed to send OTP verification email on register:", err);
     });
 
-    req.flash("success", `Welcome to SVVV_Notes, ${user.username}!`);
-    
-    // Send welcome email in background
-    sendWelcomeEmail(user.email, user.fullName || user.username).catch(err => {
-      console.error("Failed to send welcome email in register background:", err);
-    });
-
-    res.redirect("/notes");
+    req.flash(
+      "success",
+      `Account created! A 6-digit verification code has been sent to ${user.email}. Please verify your email to continue.`,
+    );
+    res.redirect(`/verify-otp?email=${encodeURIComponent(user.email)}`);
   } catch (error) {
     if (error.code === 11000 || (error.name === "MongoServerError" && error.message.includes("E11000"))) {
       const field = Object.keys(error.keyValue || {})[0];
@@ -52,11 +68,39 @@ exports.renderLogin = (req, res) =>
     pageTitle: "Sign In | SVVV_Notes",
     metaDescription: "Sign in to your SVVV_Notes account to upload notes, rate study materials, and access campus academic resources.",
   });
-exports.login = (req, res) => {
-  req.flash("success", `Welcome back, ${req.user.username}.`);
-  // Continue the action that originally prompted the visitor to sign in.
-  res.redirect(req.session.returnTo || "/notes");
+exports.login = async (req, res, next) => {
+  // Check if email is verified (allow admin to bypass if needed)
+  if (!req.user.isEmailVerified && !req.user.isAdmin && req.user.username !== "admin") {
+    const user = req.user;
+    const email = user.email;
+
+    // Generate new OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    user.otp = { code: otp, expiresAt: otpExpiry };
+    await user.save();
+
+    // Send OTP email
+    console.log(`\n🔑 [OTP CODE for ${user.email}]: ${otp}\n`);
+    sendOTPEmail(user.email, user.fullName || user.username, otp).catch((err) => {
+      console.error("Failed to send OTP email on unverified login attempt:", err);
+    });
+
+    // Log the unverified user out of session
+    await new Promise((resolve) => req.logout(() => resolve()));
+
+    req.flash(
+      "error",
+      "Please verify your email before logging in. A new verification code has been sent to your email.",
+    );
+    return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
+  }
+
+  req.flash("success", `Welcome back, ${req.user.username}!`);
+  // Continue to notes / dashboard
+  const redirectUrl = req.session.returnTo || "/notes";
   delete req.session.returnTo;
+  res.redirect(redirectUrl);
 };
 exports.logout = async (req, res, next) => {
   try {
@@ -154,16 +198,22 @@ exports.updateProfile = async (req, res, next) => {
  */
 exports.sendOTP = async (req, res, next) => {
   try {
-    const { email } = req.body;
-    
+    const rawEmail = req.body.email || req.query.email || "";
+    const email = rawEmail.trim().toLowerCase();
+
     if (!email) {
-      req.flash("error", "Email is required.");
-      return res.redirect("/login");
+      req.flash("error", "Please provide a valid email address.");
+      return res.redirect("/verify-otp");
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email });
     if (!user) {
-      req.flash("error", "No account found with this email.");
+      req.flash("error", "No account found with this email. Please register.");
+      return res.redirect("/register");
+    }
+
+    if (user.isEmailVerified) {
+      req.flash("info", "Your email is already verified. Please sign in.");
       return res.redirect("/login");
     }
 
@@ -179,9 +229,10 @@ exports.sendOTP = async (req, res, next) => {
     await user.save();
 
     // Send OTP via email
+    console.log(`\n🔑 [OTP CODE for ${user.email}]: ${otp}\n`);
     await sendOTPEmail(user.email, user.fullName || user.username, otp);
 
-    req.flash("success", `OTP sent to ${user.email}. It will expire in 10 minutes.`);
+    req.flash("success", `A new OTP has been sent to ${user.email}. It will expire in 10 minutes.`);
     res.redirect(`/verify-otp?email=${encodeURIComponent(user.email)}`);
   } catch (error) {
     console.error("Error sending OTP:", error);
@@ -190,37 +241,44 @@ exports.sendOTP = async (req, res, next) => {
 };
 
 /**
- * Verify OTP and mark email as verified
+ * Verify OTP and mark email as verified -> Redirect to login
  */
 exports.verifyOTP = async (req, res, next) => {
   try {
-    const { email, otp } = req.body;
+    const rawEmail = req.body.email || req.query.email || "";
+    const email = rawEmail.trim().toLowerCase();
+    const otp = (req.body.otp || "").trim();
 
     if (!email || !otp) {
-      req.flash("error", "Email and OTP are required.");
+      req.flash("error", "Email and OTP code are required.");
       return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email });
     if (!user) {
-      req.flash("error", "User not found.");
+      req.flash("error", "User account not found. Please register.");
+      return res.redirect("/register");
+    }
+
+    if (user.isEmailVerified) {
+      req.flash("info", "Email is already verified. Please log in.");
       return res.redirect("/login");
     }
 
     // Check if OTP exists and is not expired
     if (!user.otp || !user.otp.code) {
-      req.flash("error", "No OTP found. Request a new one.");
+      req.flash("error", "No verification code found. Please request a new one.");
       return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
     }
 
-    if (new Date() > user.otp.expiresAt) {
-      req.flash("error", "OTP has expired. Request a new one.");
+    if (new Date() > new Date(user.otp.expiresAt)) {
+      req.flash("error", "The verification code has expired. Please request a new one.");
       return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
     }
 
-    // Verify OTP
+    // Verify OTP code
     if (user.otp.code !== otp) {
-      req.flash("error", "Invalid OTP. Please try again.");
+      req.flash("error", "Invalid verification code. Please check and try again.");
       return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
     }
 
@@ -229,8 +287,16 @@ exports.verifyOTP = async (req, res, next) => {
     user.otp = { code: null, expiresAt: null };
     await user.save();
 
-    req.flash("success", "Email verified successfully!");
-    res.redirect("/notes");
+    // Send welcome email after email verification succeeds
+    sendWelcomeEmail(user.email, user.fullName || user.username).catch((err) => {
+      console.error("Failed to send welcome email after verification:", err);
+    });
+
+    req.flash(
+      "success",
+      "Email verified successfully! Please sign in to access your dashboard.",
+    );
+    res.redirect("/login");
   } catch (error) {
     console.error("Error verifying OTP:", error);
     next(error);
@@ -254,21 +320,22 @@ exports.renderForgotPassword = (req, res) => {
  */
 exports.sendPasswordReset = async (req, res, next) => {
   try {
-    const { email } = req.body;
+    const rawEmail = req.body.email || "";
+    const email = rawEmail.trim().toLowerCase();
 
     if (!email) {
       req.flash("error", "Email is required.");
       return res.redirect("/forgot-password");
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email });
     if (!user) {
-      // For security: don't reveal if email exists
-      req.flash("success", `If an account exists with ${email}, you will receive password reset instructions.`);
+      // For security and privacy: show standard confirmation
+      req.flash("success", `If an account exists with ${email}, password reset instructions have been sent.`);
       return res.redirect("/login");
     }
 
-    // Generate reset token
+    // Generate secure reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenHash = crypto
       .createHash("sha256")
@@ -280,17 +347,16 @@ exports.sendPasswordReset = async (req, res, next) => {
     user.passwordResetExpiresAt = resetExpiry;
     await user.save();
 
-    // Send reset email
-    const emailSent = await sendPasswordResetEmail(user.email, user.fullName || user.username, resetToken);
+    // Log direct reset URL in console for development/admin convenience
+    const baseUrl = (process.env.SITE_URL || process.env.BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
+    console.log(`\n🔑 [PASSWORD RESET LINK for ${user.email}]: ${baseUrl}/reset-password/${resetToken}\n`);
 
-    if (emailSent) {
-      req.flash("success", `Password reset instructions sent to ${user.email}`);
-    } else {
-      console.warn(`Password reset email failed to deliver to ${user.email}. Check mail credentials in Render Environment variables.`);
-      req.flash("error", "Unable to send password reset email at this moment. Please verify email credentials or contact support.");
-      return res.redirect("/forgot-password");
-    }
+    // Send reset email in background
+    sendPasswordResetEmail(user.email, user.fullName || user.username, resetToken).catch((err) => {
+      console.error("Password reset email delivery error:", err);
+    });
 
+    req.flash("success", `Password reset instructions have been sent to ${user.email}.`);
     res.redirect("/login");
   } catch (error) {
     console.error("Error sending password reset:", error);

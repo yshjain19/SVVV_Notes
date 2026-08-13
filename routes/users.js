@@ -44,6 +44,7 @@ router.post("/logout", users.logout);
 // ============ OTP & EMAIL VERIFICATION ============
 router
   .route("/send-otp")
+  .get(catchAsync(users.sendOTP))
   .post(catchAsync(users.sendOTP));
 
 router
