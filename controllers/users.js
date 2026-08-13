@@ -281,9 +281,16 @@ exports.sendPasswordReset = async (req, res, next) => {
     await user.save();
 
     // Send reset email
-    await sendPasswordResetEmail(user.email, user.fullName || user.username, resetToken);
+    const emailSent = await sendPasswordResetEmail(user.email, user.fullName || user.username, resetToken);
 
-    req.flash("success", `Password reset instructions sent to ${user.email}`);
+    if (emailSent) {
+      req.flash("success", `Password reset instructions sent to ${user.email}`);
+    } else {
+      console.warn(`Password reset email failed to deliver to ${user.email}. Check mail credentials in Render Environment variables.`);
+      req.flash("error", "Unable to send password reset email at this moment. Please verify email credentials or contact support.");
+      return res.redirect("/forgot-password");
+    }
+
     res.redirect("/login");
   } catch (error) {
     console.error("Error sending password reset:", error);
@@ -364,8 +371,8 @@ exports.resetPassword = async (req, res, next) => {
       return res.redirect("/forgot-password");
     }
 
-    // Use setPassword (provided by Passport Local Mongoose)
-    user.setPassword(password);
+    // Use setPassword (provided by Passport Local Mongoose - returns a Promise)
+    await user.setPassword(password);
     user.passwordResetToken = undefined;
     user.passwordResetExpiresAt = undefined;
     await user.save();
