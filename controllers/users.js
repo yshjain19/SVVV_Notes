@@ -299,11 +299,20 @@ exports.verifyOTP = async (req, res, next) => {
       console.error("Failed to send welcome email after verification:", mailErr?.message || mailErr);
     }
 
-    req.flash(
-      "success",
-      "Email verified successfully! Please sign in to access your dashboard.",
-    );
-    res.redirect("/login");
+    // Auto-login the user into Passport session
+    req.login(user, (err) => {
+      if (err) {
+        console.error("Auto-login error after verification:", err);
+        return next(err);
+      }
+      req.flash(
+        "success",
+        `Welcome to SVVV_Notes, ${user.fullName || user.username}! Your account has been verified.`,
+      );
+      const redirectUrl = req.session.returnTo || "/notes";
+      delete req.session.returnTo;
+      return res.redirect(redirectUrl);
+    });
   } catch (error) {
     console.error("Error verifying OTP:", error?.message || error);
     next(error);
