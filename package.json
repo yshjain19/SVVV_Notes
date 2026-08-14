@@ -8,6 +8,7 @@
     "start": "node app.js"
   },
   "dependencies": {
+    "@urbackend/sdk": "^0.4.7",
     "cloudinary": "^1.41.3",
     "connect-flash": "^0.1.1",
     "connect-mongo": "^5.1.0",

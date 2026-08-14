@@ -39,7 +39,7 @@ exports.register = async (req, res, next) => {
     // Passport Local Mongoose hashes the password before storing
     await User.register(user, password);
 
-    // Send OTP verification email via Resend
+    // Send OTP verification email via urBackend
     try {
       await sendOTPEmail(user.email, otp, user.fullName || user.username);
     } catch (mailErr) {
@@ -81,7 +81,7 @@ exports.login = async (req, res, next) => {
     user.otp = { code: otp, expiresAt: otpExpiry };
     await user.save();
 
-    // Send OTP email via Resend
+    // Send OTP email via urBackend
     try {
       await sendOTPEmail(user.email, otp, user.fullName || user.username);
     } catch (mailErr) {
@@ -230,7 +230,7 @@ exports.sendOTP = async (req, res, next) => {
 
     await user.save();
 
-    // Send OTP via Resend (awaited to ensure delivery before redirect)
+    // Send OTP via urBackend (awaited to ensure delivery before redirect)
     try {
       await sendOTPEmail(user.email, otp, user.fullName || user.username);
     } catch (mailErr) {
@@ -357,7 +357,7 @@ exports.sendPasswordReset = async (req, res, next) => {
     const baseUrl = getBaseUrl();
     const resetUrl = `${baseUrl}/reset-password/${resetToken}`;
 
-    // Send reset email via Resend (awaited to ensure delivery before redirect)
+    // Send reset email via urBackend (awaited to ensure delivery before redirect)
     try {
       await sendPasswordResetEmail(user.email, resetUrl, user.fullName || user.username);
     } catch (mailErr) {

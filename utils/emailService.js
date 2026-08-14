@@ -1,4 +1,4 @@
-const { Resend } = require('resend');
+const urBackend = require('@urbackend/sdk').default || require('@urbackend/sdk');
 
 /**
  * Get base URL for links in emails (defaults to production custom domain)
@@ -12,68 +12,141 @@ function getBaseUrl() {
  * Get verified sender email address
  */
 function getSenderAddress() {
-  const senderEmail = process.env.SENDER_EMAIL?.trim() || 'noreply@svvvnotes.bitbros.in';
+  const senderEmail = process.env.SENDER_EMAIL?.trim() || 'connect@svvvnotes.bitbros.in';
   return `SVVV Notes <${senderEmail}>`;
 }
 
 /**
- * Core email sender using Resend API.
+ * Get urBackend client instance with Secret Key (sk_live_...)
+ * @returns {object|null}
+ */
+function getUrBackendClient() {
+  const apiKey = (
+    process.env.URBACKEND_SECRET_KEY ||
+    process.env.URBACKEND_API_KEY ||
+    process.env.URBACKEND_KEY ||
+    ''
+  ).trim();
+
+  if (!apiKey || apiKey.startsWith('your_') || apiKey === 'YOUR_API_KEY') {
+    return null;
+  }
+
+  const baseUrl = process.env.URBACKEND_BASE_URL?.trim();
+
+  return urBackend({
+    apiKey,
+    ...(baseUrl ? { baseUrl } : {}),
+  });
+}
+
+/**
+ * Core transactional email sender using urBackend SDK Mail module.
+ *
+ * Supports two payload modes:
+ * 1. Direct Mode: { to, subject, html, text }
+ * 2. Template Mode: { to, templateName | templateId, variables }
+ *
  * Safely handles errors without crashing the Express server.
  *
  * @param {Object} options
- * @param {string} options.to - Recipient email address
- * @param {string} options.subject - Email subject line
- * @param {string} options.html - HTML formatted email content
- * @param {string} [options.text] - Plain text fallback
- * @returns {Promise<{success: boolean, id?: string, error?: any}>}
+ * @param {string|string[]} options.to - Recipient email address(es)
+ * @param {string} [options.subject] - Email subject line (required in direct mode)
+ * @param {string} [options.html] - HTML body content
+ * @param {string} [options.text] - Plain text fallback content
+ * @param {string} [options.templateName] - Template key or name
+ * @param {string} [options.templateId] - Template ObjectId (24 hex characters)
+ * @param {Record<string, unknown>} [options.variables] - Variables for template rendering ({{placeholder}} syntax)
+ * @returns {Promise<{success: boolean, id?: string|null, provider?: string, monthlyUsage?: number, monthlyLimit?: number, error?: any}>}
  */
-async function sendEmail({ to, subject, html, text }) {
-  const apiKey = process.env.RESEND_API_KEY;
+async function sendEmail(options) {
+  const { to, subject, html, text, templateName, templateId, variables } = options || {};
 
-  if (!apiKey || apiKey === 'your_resend_api_key') {
-    const warnMsg = '[Email Service] RESEND_API_KEY is missing or not configured in environment variables.';
+  const apiKey = (
+    process.env.URBACKEND_SECRET_KEY ||
+    process.env.URBACKEND_API_KEY ||
+    process.env.URBACKEND_KEY ||
+    ''
+  ).trim();
+
+  if (!apiKey || apiKey.startsWith('your_') || apiKey === 'YOUR_API_KEY') {
+    const warnMsg =
+      '[urBackend Mail] Secret Key is missing or not configured. Set URBACKEND_SECRET_KEY (or URBACKEND_API_KEY) in .env (https://urbackend.bitbros.in/dashboard).';
     console.warn(warnMsg);
     return { success: false, error: warnMsg };
   }
 
-  if (!to || typeof to !== 'string' || !to.includes('@')) {
-    const errorMsg = `[Email Service] Invalid recipient email address provided: "${to}"`;
+  if (!to || (typeof to !== 'string' && !Array.isArray(to)) || (typeof to === 'string' && !to.includes('@'))) {
+    const errorMsg = `[urBackend Mail] Invalid recipient email address provided: "${to}"`;
     console.error(errorMsg);
     return { success: false, error: errorMsg };
   }
 
   try {
-    const resend = new Resend(apiKey);
-    const from = getSenderAddress();
-
-    const response = await resend.emails.send({
-      from,
-      to: to.trim().toLowerCase(),
-      subject,
-      html,
-      text: text || undefined,
-    });
-
-    if (response.error) {
-      console.error(`[Resend Error] Failed to send email to ${to}:`, response.error.message || response.error);
-      return { success: false, error: response.error };
+    const client = getUrBackendClient();
+    if (!client || !client.mail) {
+      const initErr = '[urBackend Mail] Failed to initialize urBackend SDK client.';
+      console.error(initErr);
+      return { success: false, error: initErr };
     }
 
-    console.log(`[Resend Success] Email delivered to: ${to} (ID: ${response.data?.id})`);
-    return { success: true, id: response.data?.id };
+    const payload = {
+      to: typeof to === 'string' ? to.trim().toLowerCase() : to,
+    };
+
+    // Determine whether to send in Template Mode or Direct Mode
+    if (templateName) {
+      payload.templateName = templateName;
+      if (variables && typeof variables === 'object') {
+        payload.variables = variables;
+      }
+    } else if (templateId) {
+      payload.templateId = templateId;
+      if (variables && typeof variables === 'object') {
+        payload.variables = variables;
+      }
+    } else {
+      payload.subject = subject || 'SVVV Notes Notification';
+      if (html) payload.html = html;
+      if (text) payload.text = text;
+      // Fallback if neither html nor text provided
+      if (!html && !text) {
+        payload.text = subject || 'SVVV Notes Notification';
+      }
+    }
+
+    const response = await client.mail.send(payload);
+
+    const messageId = response?.id || null;
+    const provider = response?.provider || 'default';
+    console.log(
+      `[urBackend Mail Success] Email delivered to: ${Array.isArray(to) ? to.join(', ') : to} (ID: ${messageId || 'N/A'}, Provider: ${provider})`
+    );
+
+    return {
+      success: true,
+      id: messageId,
+      provider: response?.provider,
+      monthlyUsage: response?.monthlyUsage,
+      monthlyLimit: response?.monthlyLimit,
+    };
   } catch (err) {
-    console.error(`[Resend Exception] Unexpected error sending email to ${to}:`, err.message || err);
-    return { success: false, error: err.message || err };
+    const errMsg = err?.message || err;
+    console.error(
+      `[urBackend Mail Error] Failed to send email to ${Array.isArray(to) ? to.join(', ') : to}:`,
+      errMsg
+    );
+    return { success: false, error: errMsg };
   }
 }
 
 /**
- * Sends a 6-digit OTP verification email to the user.
+ * Sends a 6-digit OTP verification email to the user via urBackend.
  *
  * @param {string} toEmail - Recipient email address
  * @param {string} otp - 6-digit verification code
  * @param {string} [name='Student'] - Recipient name/username
- * @returns {Promise<{success: boolean, id?: string, error?: any}>}
+ * @returns {Promise<{success: boolean, id?: string|null, error?: any}>}
  */
 async function sendOTPEmail(toEmail, otp, name) {
   // Support flexible argument order (email, otp, name) or (email, name, otp)
@@ -92,9 +165,25 @@ async function sendOTPEmail(toEmail, otp, name) {
     }
   }
 
-  const subject = `Your SVVV Notes Verification Code: ${otpCode}`;
   const siteUrl = getBaseUrl();
   const year = new Date().getFullYear();
+
+  // If a custom urBackend template name is configured in environment, use Template Mode
+  const templateName = process.env.URBACKEND_OTP_TEMPLATE;
+  if (templateName) {
+    return await sendEmail({
+      to: toEmail,
+      templateName,
+      variables: {
+        name: recipientName,
+        otp: otpCode,
+        appUrl: siteUrl,
+        year: String(year),
+      },
+    });
+  }
+
+  const subject = `Your SVVV Notes Verification Code: ${otpCode}`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -286,12 +375,12 @@ async function sendOTPEmail(toEmail, otp, name) {
 }
 
 /**
- * Sends a password reset email with secure URL token.
+ * Sends a password reset email with secure URL token via urBackend.
  *
  * @param {string} toEmail - Recipient email address
  * @param {string} resetUrlOrToken - Password reset URL or raw token
  * @param {string} [name='Student'] - Recipient name/username
- * @returns {Promise<{success: boolean, id?: string, error?: any}>}
+ * @returns {Promise<{success: boolean, id?: string|null, error?: any}>}
  */
 async function sendPasswordResetEmail(toEmail, resetUrlOrToken, name) {
   let recipientName = 'Student';
@@ -307,8 +396,24 @@ async function sendPasswordResetEmail(toEmail, resetUrlOrToken, name) {
     resetUrl = `${siteUrl}/reset-password/${resetUrlOrToken}`;
   }
 
-  const subject = 'Reset Your Password - SVVV Notes';
   const year = new Date().getFullYear();
+
+  // If a custom urBackend template is configured, use Template Mode
+  const templateName = process.env.URBACKEND_RESET_PASSWORD_TEMPLATE;
+  if (templateName) {
+    return await sendEmail({
+      to: toEmail,
+      templateName,
+      variables: {
+        name: recipientName,
+        resetUrl,
+        appUrl: siteUrl,
+        year: String(year),
+      },
+    });
+  }
+
+  const subject = 'Reset Your Password - SVVV Notes';
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -513,16 +618,32 @@ async function sendPasswordResetEmail(toEmail, resetUrlOrToken, name) {
 }
 
 /**
- * Sends a welcome email after successful email verification.
+ * Sends a welcome email after successful email verification via urBackend.
  *
  * @param {string} toEmail - Recipient email address
  * @param {string} [name='Student'] - Recipient name/username
- * @returns {Promise<{success: boolean, id?: string, error?: any}>}
+ * @returns {Promise<{success: boolean, id?: string|null, error?: any}>}
  */
 async function sendWelcomeEmail(toEmail, name) {
-  const recipientName = (name && typeof name === 'string') ? name.trim() : 'Student';
+  const recipientName = name && typeof name === 'string' ? name.trim() : 'Student';
   const siteUrl = getBaseUrl();
   const year = new Date().getFullYear();
+
+  // If a custom urBackend welcome template or default welcome is configured
+  const templateName = process.env.URBACKEND_WELCOME_TEMPLATE;
+  if (templateName) {
+    return await sendEmail({
+      to: toEmail,
+      templateName,
+      variables: {
+        name: recipientName,
+        projectName: 'SVVV Notes',
+        appUrl: siteUrl,
+        year: String(year),
+      },
+    });
+  }
+
   const subject = 'Welcome to SVVV Notes! 🚀';
 
   const html = `<!DOCTYPE html>
@@ -595,4 +716,5 @@ module.exports = {
   sendWelcomeEmail,
   getBaseUrl,
   getSenderAddress,
+  getUrBackendClient,
 };
