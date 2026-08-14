@@ -184,7 +184,7 @@ app.get("/", async (req, res, next) => {
 
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
-      metaDescription: "SVVV_Notes is a student-built study notes and academic resource sharing community for SVVV CSE students. Browse syllabus, PYQs, and handwritten notes.",
+      metaDescription: "Your ultimate hub for SVVV study materials, lecture notes, syllabus, previous year papers, and more. Upload notes, track your progress on the leaderboard, and more.",
       latestNotes,
       activeSubjects,
     });
