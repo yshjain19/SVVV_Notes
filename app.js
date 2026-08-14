@@ -59,7 +59,7 @@ app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
 app.use(
   session({
-    secret: process.env.SESSION_SECRET ,
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     // Atlas-backed sessions survive a Render/Railway process restart.
@@ -151,7 +151,7 @@ app.get("/", async (req, res, next) => {
     ]);
     const activeSubjectIds = activeSubjectsData.map(s => s._id);
     let activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } });
-    
+
     // Sort activeSubjects by note count descending to keep the most popular ones first
     activeSubjects.sort((a, b) => {
       const aCount = activeSubjectsData.find(s => s._id.equals(a._id))?.count || 0;
@@ -212,7 +212,7 @@ app.get("/robots.txt", (req, res) => {
   res.set("Content-Type", "text/plain; charset=utf-8");
   res.set("Cache-Control", "public, max-age=86400");
   res.send(
-`User-agent: *
+    `User-agent: *
 Allow: /
 Allow: /css/
 Allow: /js/
@@ -326,6 +326,9 @@ app.get("/sitemap.xml", async (req, res) => {
     return res.status(200).send(fallbackXml);
   }
 });
+app.get("/health", (req, res) => {
+  res.status(200).send("SVVV Notes is running");
+});
 
 app.all("*", (req, res) =>
   res.status(404).render("error", {
@@ -377,17 +380,17 @@ main()
   })
   .catch((error) => {
     console.error("MongoDB connection failed:", error.message);
-  if (
-    error?.name === "MongoServerSelectionError" ||
-    error?.code === "ECONNREFUSED" ||
-    error?.code === "ENOTFOUND" ||
-    error?.message?.includes("querySrv")
-  ) {
-    console.error("\nAtlas troubleshooting:");
-    console.error("- Confirm the cluster is running and not paused in MongoDB Atlas.");
-    console.error("- Add your current public IP address under Network Access in Atlas.");
-    console.error("- Verify the username/password and database name in MONGODB_URI.");
-    console.error("- Use the exact SRV connection string copied from Atlas.");
-  }
-  process.exit(1);
-});
+    if (
+      error?.name === "MongoServerSelectionError" ||
+      error?.code === "ECONNREFUSED" ||
+      error?.code === "ENOTFOUND" ||
+      error?.message?.includes("querySrv")
+    ) {
+      console.error("\nAtlas troubleshooting:");
+      console.error("- Confirm the cluster is running and not paused in MongoDB Atlas.");
+      console.error("- Add your current public IP address under Network Access in Atlas.");
+      console.error("- Verify the username/password and database name in MONGODB_URI.");
+      console.error("- Use the exact SRV connection string copied from Atlas.");
+    }
+    process.exit(1);
+  });
