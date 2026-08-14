@@ -104,14 +104,14 @@ function escapeXml(unsafe) {
 }
 
 function getBaseUrl(req) {
-  if (process.env.SITE_URL) {
-    return process.env.SITE_URL.replace(/\/+$/, "");
-  }
   if (process.env.BASE_URL) {
     return process.env.BASE_URL.replace(/\/+$/, "");
   }
+  if (process.env.SITE_URL) {
+    return process.env.SITE_URL.replace(/\/+$/, "");
+  }
   const forwardedProto = req.get("x-forwarded-proto");
-  const host = req.get("x-forwarded-host") || req.get("host") || "svvv-notes.onrender.com";
+  const host = req.get("x-forwarded-host") || req.get("host") || "svvvnotes.bitbros.in";
   const protocol = forwardedProto || (process.env.NODE_ENV === "production" ? "https" : req.protocol || "https");
   return `${protocol}://${host}`.replace(/\/+$/, "");
 }

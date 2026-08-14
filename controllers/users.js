@@ -1,6 +1,6 @@
 const User = require("../models/user");
 const Note = require("../models/note");
-const { sendWelcomeEmail, sendOTPEmail, sendPasswordResetEmail } = require("../config/mail");
+const { sendWelcomeEmail, sendOTPEmail, sendPasswordResetEmail, getBaseUrl } = require("../utils/emailService");
 const crypto = require("crypto");
 
 // Authentication views are deliberately kept thin; business logic is below.
@@ -28,8 +28,8 @@ exports.register = async (req, res, next) => {
   }
 
   try {
-    // Generate 6-digit OTP code valid for 10 minutes
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate secure 6-digit OTP code valid for 10 minutes
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     user.otp = {
       code: otp,
@@ -39,10 +39,9 @@ exports.register = async (req, res, next) => {
     // Passport Local Mongoose hashes the password before storing
     await User.register(user, password);
 
-    // Send OTP verification email in background
-    console.log(`\n🔑 [OTP CODE for ${user.email}]: ${otp}\n`);
-    sendOTPEmail(user.email, user.fullName || user.username, otp).catch((err) => {
-      console.error("Failed to send OTP verification email on register:", err);
+    // Send OTP verification email in background via Resend
+    sendOTPEmail(user.email, otp, user.fullName || user.username).catch((err) => {
+      console.error("Failed to send OTP verification email on register:", err?.message || err);
     });
 
     req.flash(
@@ -74,16 +73,15 @@ exports.login = async (req, res, next) => {
     const user = req.user;
     const email = user.email;
 
-    // Generate new OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate new secure OTP
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     user.otp = { code: otp, expiresAt: otpExpiry };
     await user.save();
 
-    // Send OTP email
-    console.log(`\n🔑 [OTP CODE for ${user.email}]: ${otp}\n`);
-    sendOTPEmail(user.email, user.fullName || user.username, otp).catch((err) => {
-      console.error("Failed to send OTP email on unverified login attempt:", err);
+    // Send OTP email via Resend
+    sendOTPEmail(user.email, otp, user.fullName || user.username).catch((err) => {
+      console.error("Failed to send OTP email on unverified login attempt:", err?.message || err);
     });
 
     // Log the unverified user out of session
@@ -217,8 +215,8 @@ exports.sendOTP = async (req, res, next) => {
       return res.redirect("/login");
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate secure 6-digit OTP
+    const otp = crypto.randomInt(100000, 1000000).toString();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     user.otp = {
@@ -228,14 +226,15 @@ exports.sendOTP = async (req, res, next) => {
 
     await user.save();
 
-    // Send OTP via email
-    console.log(`\n🔑 [OTP CODE for ${user.email}]: ${otp}\n`);
-    await sendOTPEmail(user.email, user.fullName || user.username, otp);
+    // Send OTP via Resend
+    sendOTPEmail(user.email, otp, user.fullName || user.username).catch((err) => {
+      console.error("Error sending OTP email:", err?.message || err);
+    });
 
     req.flash("success", `A new OTP has been sent to ${user.email}. It will expire in 10 minutes.`);
     res.redirect(`/verify-otp?email=${encodeURIComponent(user.email)}`);
   } catch (error) {
-    console.error("Error sending OTP:", error);
+    console.error("Error sending OTP:", error?.message || error);
     next(error);
   }
 };
@@ -289,7 +288,7 @@ exports.verifyOTP = async (req, res, next) => {
 
     // Send welcome email after email verification succeeds
     sendWelcomeEmail(user.email, user.fullName || user.username).catch((err) => {
-      console.error("Failed to send welcome email after verification:", err);
+      console.error("Failed to send welcome email after verification:", err?.message || err);
     });
 
     req.flash(
@@ -298,7 +297,7 @@ exports.verifyOTP = async (req, res, next) => {
     );
     res.redirect("/login");
   } catch (error) {
-    console.error("Error verifying OTP:", error);
+    console.error("Error verifying OTP:", error?.message || error);
     next(error);
   }
 };
@@ -347,19 +346,19 @@ exports.sendPasswordReset = async (req, res, next) => {
     user.passwordResetExpiresAt = resetExpiry;
     await user.save();
 
-    // Log direct reset URL in console for development/admin convenience
-    const baseUrl = (process.env.SITE_URL || process.env.BASE_URL || "http://localhost:3000").replace(/\/+$/, "");
-    console.log(`\n🔑 [PASSWORD RESET LINK for ${user.email}]: ${baseUrl}/reset-password/${resetToken}\n`);
+    // Construct full reset URL
+    const baseUrl = getBaseUrl();
+    const resetUrl = `${baseUrl}/reset-password/${resetToken}`;
 
-    // Send reset email in background
-    sendPasswordResetEmail(user.email, user.fullName || user.username, resetToken).catch((err) => {
-      console.error("Password reset email delivery error:", err);
+    // Send reset email via Resend
+    sendPasswordResetEmail(user.email, resetUrl, user.fullName || user.username).catch((err) => {
+      console.error("Password reset email delivery error:", err?.message || err);
     });
 
     req.flash("success", `Password reset instructions have been sent to ${user.email}.`);
     res.redirect("/login");
   } catch (error) {
-    console.error("Error sending password reset:", error);
+    console.error("Error sending password reset:", error?.message || error);
     next(error);
   }
 };
