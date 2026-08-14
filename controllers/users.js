@@ -39,10 +39,12 @@ exports.register = async (req, res, next) => {
     // Passport Local Mongoose hashes the password before storing
     await User.register(user, password);
 
-    // Send OTP verification email in background via Resend
-    sendOTPEmail(user.email, otp, user.fullName || user.username).catch((err) => {
-      console.error("Failed to send OTP verification email on register:", err?.message || err);
-    });
+    // Send OTP verification email via Resend
+    try {
+      await sendOTPEmail(user.email, otp, user.fullName || user.username);
+    } catch (mailErr) {
+      console.error("Failed to send OTP verification email on register:", mailErr?.message || mailErr);
+    }
 
     req.flash(
       "success",
@@ -80,9 +82,11 @@ exports.login = async (req, res, next) => {
     await user.save();
 
     // Send OTP email via Resend
-    sendOTPEmail(user.email, otp, user.fullName || user.username).catch((err) => {
-      console.error("Failed to send OTP email on unverified login attempt:", err?.message || err);
-    });
+    try {
+      await sendOTPEmail(user.email, otp, user.fullName || user.username);
+    } catch (mailErr) {
+      console.error("Failed to send OTP email on unverified login attempt:", mailErr?.message || mailErr);
+    }
 
     // Log the unverified user out of session
     await new Promise((resolve) => req.logout(() => resolve()));
@@ -226,10 +230,12 @@ exports.sendOTP = async (req, res, next) => {
 
     await user.save();
 
-    // Send OTP via Resend
-    sendOTPEmail(user.email, otp, user.fullName || user.username).catch((err) => {
-      console.error("Error sending OTP email:", err?.message || err);
-    });
+    // Send OTP via Resend (awaited to ensure delivery before redirect)
+    try {
+      await sendOTPEmail(user.email, otp, user.fullName || user.username);
+    } catch (mailErr) {
+      console.error("Error sending OTP email:", mailErr?.message || mailErr);
+    }
 
     req.flash("success", `A new OTP has been sent to ${user.email}. It will expire in 10 minutes.`);
     res.redirect(`/verify-otp?email=${encodeURIComponent(user.email)}`);
@@ -287,9 +293,11 @@ exports.verifyOTP = async (req, res, next) => {
     await user.save();
 
     // Send welcome email after email verification succeeds
-    sendWelcomeEmail(user.email, user.fullName || user.username).catch((err) => {
-      console.error("Failed to send welcome email after verification:", err?.message || err);
-    });
+    try {
+      await sendWelcomeEmail(user.email, user.fullName || user.username);
+    } catch (mailErr) {
+      console.error("Failed to send welcome email after verification:", mailErr?.message || mailErr);
+    }
 
     req.flash(
       "success",
@@ -329,9 +337,8 @@ exports.sendPasswordReset = async (req, res, next) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      // For security and privacy: show standard confirmation
-      req.flash("success", `If an account exists with ${email}, password reset instructions have been sent.`);
-      return res.redirect("/login");
+      req.flash("error", `No account found with ${email}. Please check your email or register.`);
+      return res.redirect("/forgot-password");
     }
 
     // Generate secure reset token
@@ -350,12 +357,14 @@ exports.sendPasswordReset = async (req, res, next) => {
     const baseUrl = getBaseUrl();
     const resetUrl = `${baseUrl}/reset-password/${resetToken}`;
 
-    // Send reset email via Resend
-    sendPasswordResetEmail(user.email, resetUrl, user.fullName || user.username).catch((err) => {
-      console.error("Password reset email delivery error:", err?.message || err);
-    });
+    // Send reset email via Resend (awaited to ensure delivery before redirect)
+    try {
+      await sendPasswordResetEmail(user.email, resetUrl, user.fullName || user.username);
+    } catch (mailErr) {
+      console.error("Password reset email delivery error:", mailErr?.message || mailErr);
+    }
 
-    req.flash("success", `Password reset instructions have been sent to ${user.email}.`);
+    req.flash("success", `Password reset instructions have been sent to ${user.email}. Please check your inbox or spam folder.`);
     res.redirect("/login");
   } catch (error) {
     console.error("Error sending password reset:", error?.message || error);
