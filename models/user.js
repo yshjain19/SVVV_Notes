@@ -10,6 +10,12 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+    },
     email: {
       type: String,
       required: true,
@@ -45,6 +51,21 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-// Adds username, salted password hash, and Passport authentication helpers.
-userSchema.plugin(passportLocalMongoose);
+// Adds email as usernameField, salted password hash, and Passport authentication helpers.
+// Supports sign-in with email (and fallback to username).
+userSchema.plugin(passportLocalMongoose, {
+  usernameField: "email",
+  usernameLowerCase: true,
+  findByUsername: function (model, queryParameters) {
+    const input = queryParameters.email || queryParameters.username;
+    if (!input) return model.findOne(queryParameters);
+    const cleanInput = String(input).trim();
+    return model.findOne({
+      $or: [
+        { email: cleanInput.toLowerCase() },
+        { username: cleanInput },
+      ],
+    });
+  },
+});
 module.exports = mongoose.model("User", userSchema);

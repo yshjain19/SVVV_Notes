@@ -98,7 +98,8 @@ exports.login = async (req, res, next) => {
     return res.redirect(`/verify-otp?email=${encodeURIComponent(email)}`);
   }
 
-  req.flash("success", `Welcome back, ${req.user.username}!`);
+  const displayName = req.user.fullName || req.user.username || "Student";
+  req.flash("success", `Welcome back, ${displayName}!`);
   // Continue to notes / dashboard
   const redirectUrl = req.session.returnTo || "/notes";
   delete req.session.returnTo;

@@ -26,7 +26,15 @@ async function generateUniqueUsername(base) {
 }
 
 // 1. Configure Local Strategy (passport-local-mongoose)
-passport.use(new LocalStrategy(User.authenticate()));
+passport.use(
+  new LocalStrategy(
+    {
+      usernameField: "email",
+      passwordField: "password",
+    },
+    User.authenticate(),
+  ),
+);
 
 // 2. Configure Google OAuth 2.0 Strategy
 const callbackURL =
