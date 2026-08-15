@@ -92,6 +92,7 @@ async function sendEmail(options) {
 
     const payload = {
       to: typeof to === 'string' ? to.trim().toLowerCase() : to,
+      from: getSenderAddress(),
     };
 
     // Determine whether to send in Template Mode or Direct Mode

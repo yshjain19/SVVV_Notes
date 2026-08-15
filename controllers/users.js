@@ -46,6 +46,17 @@ exports.register = async (req, res, next) => {
       console.error("Failed to send OTP verification email on register:", mailErr?.message || mailErr);
     }
 
+    // Send Welcome email on account creation
+    if (!user.hasReceivedWelcomeEmail) {
+      try {
+        await sendWelcomeEmail(user.email, user.fullName || user.username);
+        user.hasReceivedWelcomeEmail = true;
+        await user.save();
+      } catch (mailErr) {
+        console.error("Failed to send welcome email on register:", mailErr?.message || mailErr);
+      }
+    }
+
     req.flash(
       "success",
       `Account created! A 6-digit verification code has been sent to ${user.email}. Please verify your email to continue.`,
@@ -302,14 +313,17 @@ exports.verifyOTP = async (req, res, next) => {
     // Mark email as verified and clear OTP
     user.isEmailVerified = true;
     user.otp = { code: null, expiresAt: null };
-    await user.save();
 
     // Send welcome email after email verification succeeds
-    try {
-      await sendWelcomeEmail(user.email, user.fullName || user.username);
-    } catch (mailErr) {
-      console.error("Failed to send welcome email after verification:", mailErr?.message || mailErr);
+    if (!user.hasReceivedWelcomeEmail) {
+      try {
+        await sendWelcomeEmail(user.email, user.fullName || user.username);
+        user.hasReceivedWelcomeEmail = true;
+      } catch (mailErr) {
+        console.error("Failed to send welcome email after verification:", mailErr?.message || mailErr);
+      }
     }
+    await user.save();
 
     // Auto-login the user into Passport session
     req.login(user, (err) => {

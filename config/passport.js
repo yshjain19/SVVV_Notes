@@ -2,6 +2,7 @@ const passport = require("passport");
 const LocalStrategy = require("passport-local");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const User = require("../models/user");
+const { sendWelcomeEmail } = require("../utils/emailService");
 
 // Helper to generate a unique username from display name or email prefix
 async function generateUniqueUsername(base) {
@@ -68,8 +69,16 @@ passport.use(
         if (user) {
           if (!user.isEmailVerified) {
             user.isEmailVerified = true;
-            await user.save();
           }
+          if (!user.hasReceivedWelcomeEmail && user.email && !user.email.includes("@google.oauth")) {
+            try {
+              await sendWelcomeEmail(user.email, user.fullName || user.username);
+              user.hasReceivedWelcomeEmail = true;
+            } catch (mailErr) {
+              console.error("Failed to send welcome email for Google user:", mailErr?.message || mailErr);
+            }
+          }
+          await user.save();
           return done(null, user);
         }
 
@@ -87,6 +96,14 @@ passport.use(
                 user.avatar.url.includes("avatar-"))
             ) {
               user.avatar = { url: photoUrl };
+            }
+            if (!user.hasReceivedWelcomeEmail && user.email && !user.email.includes("@google.oauth")) {
+              try {
+                await sendWelcomeEmail(user.email, user.fullName || user.username);
+                user.hasReceivedWelcomeEmail = true;
+              } catch (mailErr) {
+                console.error("Failed to send welcome email for Google user:", mailErr?.message || mailErr);
+              }
             }
             await user.save();
             return done(null, user);
@@ -108,11 +125,22 @@ passport.use(
               `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(displayName)}`,
           },
           isEmailVerified: true,
+          hasReceivedWelcomeEmail: true,
           branch: "C.S.E",
           course: "Computer Science",
         });
 
         await newUser.save();
+
+        // Send welcome email to first-time Google sign up user
+        if (email && !email.includes("@google.oauth")) {
+          try {
+            await sendWelcomeEmail(newUser.email, newUser.fullName || newUser.username);
+          } catch (mailErr) {
+            console.error("Failed to send welcome email for Google signup:", mailErr?.message || mailErr);
+          }
+        }
+
         return done(null, newUser);
       } catch (err) {
         return done(err, null);
