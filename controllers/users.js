@@ -104,6 +104,17 @@ exports.login = async (req, res, next) => {
   delete req.session.returnTo;
   res.redirect(redirectUrl);
 };
+exports.googleCallback = async (req, res, next) => {
+  try {
+    const displayName = req.user.fullName || req.user.username || "Student";
+    req.flash("success", `Signed in successfully with Google! Welcome back, ${displayName}.`);
+    const redirectUrl = req.session.returnTo || "/notes";
+    delete req.session.returnTo;
+    res.redirect(redirectUrl);
+  } catch (error) {
+    next(error);
+  }
+};
 exports.logout = async (req, res, next) => {
   try {
     await new Promise((resolve, reject) => {

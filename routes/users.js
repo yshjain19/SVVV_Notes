@@ -41,6 +41,36 @@ router
   );
 router.post("/logout", users.logout);
 
+// ============ GOOGLE OAUTH ============
+router.get("/auth/google", (req, res, next) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    req.flash(
+      "error",
+      "Google Sign-In is not configured yet. Please provide GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env.",
+    );
+    return res.redirect("/login");
+  }
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    prompt: "select_account",
+  })(req, res, next);
+});
+
+router.get(
+  "/auth/google/callback",
+  (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      req.flash("error", "Google Sign-In is not configured.");
+      return res.redirect("/login");
+    }
+    passport.authenticate("google", {
+      failureRedirect: "/login",
+      failureFlash: true,
+    })(req, res, next);
+  },
+  catchAsync(users.googleCallback),
+);
+
 // ============ OTP & EMAIL VERIFICATION ============
 router
   .route("/send-otp")

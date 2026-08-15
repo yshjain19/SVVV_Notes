@@ -731,6 +731,54 @@ main { animation: fadeUp 0.35s ease both; }
 .auth-switch a { font-weight: 700; text-decoration: none; color: var(--primary); }
 .auth-switch a:hover { color: var(--primary-dark); }
 
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0 16px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+.auth-divider span {
+  padding: 0 12px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.btn-google {
+  background: #ffffff;
+  color: #374151;
+  border: 1.5px solid var(--border);
+  font-weight: 600;
+  font-size: 0.86rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-decoration: none;
+  padding: 0.58rem 1.1rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+}
+.btn-google:hover {
+  background: #f9fafb;
+  border-color: #cbd5e1;
+  color: #111827;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+.btn-google svg {
+  flex-shrink: 0;
+}
+
 /* ============================================================
    PROFILE
    ============================================================ */
