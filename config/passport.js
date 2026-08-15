@@ -29,97 +29,89 @@ async function generateUniqueUsername(base) {
 passport.use(new LocalStrategy(User.authenticate()));
 
 // 2. Configure Google OAuth 2.0 Strategy
-if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  const callbackURL =
-    process.env.GOOGLE_CALLBACK_URL ||
-    (process.env.NODE_ENV === "production"
-      ? "https://svvv-notes.onrender.com/auth/google/callback"
-      : "/auth/google/callback");
+const callbackURL =
+  process.env.GOOGLE_CALLBACK_URL ||
+  "https://svvv-notes.onrender.com/auth/google/callback";
 
-  passport.use(
-    new GoogleStrategy(
-      {
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: callbackURL,
-        proxy: true,
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const email =
-            profile.emails && profile.emails[0]
-              ? profile.emails[0].value.toLowerCase().trim()
-              : null;
-          const photoUrl =
-            profile.photos && profile.photos[0] ? profile.photos[0].value : null;
-          const displayName =
-            profile.displayName ||
-            (profile.name
-              ? `${profile.name.givenName || ""} ${profile.name.familyName || ""}`.trim()
-              : "Student");
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID || "GOOGLE_CLIENT_ID_PLACEHOLDER",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "GOOGLE_CLIENT_SECRET_PLACEHOLDER",
+      callbackURL: callbackURL,
+      proxy: true,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        const email =
+          profile.emails && profile.emails[0]
+            ? profile.emails[0].value.toLowerCase().trim()
+            : null;
+        const photoUrl =
+          profile.photos && profile.photos[0] ? profile.photos[0].value : null;
+        const displayName =
+          profile.displayName ||
+          (profile.name
+            ? `${profile.name.givenName || ""} ${profile.name.familyName || ""}`.trim()
+            : "Student");
 
-          // Step A: Find existing user with matching googleId
-          let user = await User.findOne({ googleId: profile.id });
+        // Step A: Find existing user with matching googleId
+        let user = await User.findOne({ googleId: profile.id });
+        if (user) {
+          if (!user.isEmailVerified) {
+            user.isEmailVerified = true;
+            await user.save();
+          }
+          return done(null, user);
+        }
+
+        // Step B: Find existing user with matching email (link Google ID)
+        if (email) {
+          user = await User.findOne({ email });
           if (user) {
-            if (!user.isEmailVerified) {
-              user.isEmailVerified = true;
-              await user.save();
+            user.googleId = profile.id;
+            user.isEmailVerified = true;
+            if (
+              photoUrl &&
+              (!user.avatar ||
+                !user.avatar.url ||
+                user.avatar.url.includes("dicebear") ||
+                user.avatar.url.includes("avatar-"))
+            ) {
+              user.avatar = { url: photoUrl };
             }
+            await user.save();
             return done(null, user);
           }
-
-          // Step B: Find existing user with matching email (link Google ID)
-          if (email) {
-            user = await User.findOne({ email });
-            if (user) {
-              user.googleId = profile.id;
-              user.isEmailVerified = true;
-              if (
-                photoUrl &&
-                (!user.avatar ||
-                  !user.avatar.url ||
-                  user.avatar.url.includes("dicebear") ||
-                  user.avatar.url.includes("avatar-"))
-              ) {
-                user.avatar = { url: photoUrl };
-              }
-              await user.save();
-              return done(null, user);
-            }
-          }
-
-          // Step C: Create new student user for first-time Google sign in
-          const baseUsername = email ? email.split("@")[0] : displayName;
-          const username = await generateUniqueUsername(baseUsername);
-
-          const newUser = new User({
-            googleId: profile.id,
-            email: email || `${profile.id}@google.oauth`,
-            username: username,
-            fullName: displayName,
-            avatar: {
-              url:
-                photoUrl ||
-                `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(displayName)}`,
-            },
-            isEmailVerified: true,
-            branch: "C.S.E",
-            course: "Computer Science",
-          });
-
-          await newUser.save();
-          return done(null, newUser);
-        } catch (err) {
-          return done(err, null);
         }
-      },
-    ),
-  );
-} else {
-  console.warn(
-    "⚠️ Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) are missing. Google sign-in is disabled until configured in .env.",
-  );
-}
+
+        // Step C: Create new student user for first-time Google sign in
+        const baseUsername = email ? email.split("@")[0] : displayName;
+        const username = await generateUniqueUsername(baseUsername);
+
+        const newUser = new User({
+          googleId: profile.id,
+          email: email || `${profile.id}@google.oauth`,
+          username: username,
+          fullName: displayName,
+          avatar: {
+            url:
+              photoUrl ||
+              `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(displayName)}`,
+          },
+          isEmailVerified: true,
+          branch: "C.S.E",
+          course: "Computer Science",
+        });
+
+        await newUser.save();
+        return done(null, newUser);
+      } catch (err) {
+        return done(err, null);
+      }
+    },
+  ),
+);
 
 // 3. Configure Passport serialization
 passport.serializeUser(User.serializeUser());
