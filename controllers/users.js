@@ -3,6 +3,20 @@ const Note = require("../models/note");
 const { sendWelcomeEmail, sendOTPEmail, sendPasswordResetEmail, getBaseUrl } = require("../utils/emailService");
 const crypto = require("crypto");
 
+const RESERVED_USERNAMES = [
+  "admin",
+  "administrator",
+  "root",
+  "system",
+  "moderator",
+  "mod",
+  "svvv_admin",
+  "support",
+  "owner",
+  "null",
+  "undefined",
+];
+
 // Authentication views are deliberately kept thin; business logic is below.
 exports.renderRegister = (req, res) =>
   res.render("users/register", {
@@ -11,13 +25,21 @@ exports.renderRegister = (req, res) =>
   });
 exports.register = async (req, res, next) => {
   const { username, fullName, email, password, course, semester, gender } = req.body;
+  const cleanUsername = (username || "").toLowerCase().trim();
+
+  if (RESERVED_USERNAMES.includes(cleanUsername)) {
+    req.flash("error", "This username is reserved. Please choose a different username.");
+    return res.redirect("/register");
+  }
+
   const user = new User({
-    username,
-    fullName,
+    username: (username || "").trim(),
+    fullName: (fullName || "").trim(),
     email: (email || "").toLowerCase().trim(),
     course,
     semester,
     gender,
+    isAdmin: false,
     isEmailVerified: false,
   });
 
@@ -82,7 +104,7 @@ exports.renderLogin = (req, res) =>
   });
 exports.login = async (req, res, next) => {
   // Check if email is verified (allow admin to bypass if needed)
-  if (!req.user.isEmailVerified && !req.user.isAdmin && req.user.username !== "admin") {
+  if (!req.user.isEmailVerified && !req.user.isAdmin) {
     const user = req.user;
     const email = user.email;
 
@@ -177,25 +199,42 @@ exports.renderEditForm = async (req, res) => {
 
 exports.updateProfile = async (req, res, next) => {
   const { id } = req.params;
-  const { user: userData } = req.body;
+  const { user: userData = {} } = req.body;
   try {
     const existingUser = await User.findById(id);
-    if (existingUser && userData.gender && userData.gender !== existingUser.gender) {
-      const isDefaultAvatar = !existingUser.avatar?.url || 
-        existingUser.avatar.url.includes("avatar-male.svg") || 
-        existingUser.avatar.url.includes("avatar-female.svg") || 
-        existingUser.avatar.url.includes("api.dicebear.com");
+    if (!existingUser) {
+      req.flash("error", "Student profile could not be found.");
+      return res.redirect("/notes");
+    }
 
-      if (isDefaultAvatar) {
-        if (userData.gender === "Male") {
-          userData.avatar = { url: "/images/avatar-male.svg" };
-        } else if (userData.gender === "Female") {
-          userData.avatar = { url: "/images/avatar-female.svg" };
+    // Whitelist only allowed fields to prevent mass assignment privilege escalation
+    const allowedUpdates = {};
+    if (typeof userData.fullName === "string") allowedUpdates.fullName = userData.fullName.trim();
+    if (typeof userData.email === "string") allowedUpdates.email = userData.email.toLowerCase().trim();
+    if (typeof userData.course === "string") allowedUpdates.course = userData.course.trim();
+    if (typeof userData.branch === "string") allowedUpdates.branch = userData.branch.trim();
+    if (userData.semester) allowedUpdates.semester = Number(userData.semester);
+
+    if (userData.gender && ["Male", "Female", "Other"].includes(userData.gender)) {
+      allowedUpdates.gender = userData.gender;
+      if (userData.gender !== existingUser.gender) {
+        const isDefaultAvatar =
+          !existingUser.avatar?.url ||
+          existingUser.avatar.url.includes("avatar-male.svg") ||
+          existingUser.avatar.url.includes("avatar-female.svg") ||
+          existingUser.avatar.url.includes("api.dicebear.com");
+
+        if (isDefaultAvatar) {
+          if (userData.gender === "Male") {
+            allowedUpdates.avatar = { url: "/images/avatar-male.svg" };
+          } else if (userData.gender === "Female") {
+            allowedUpdates.avatar = { url: "/images/avatar-female.svg" };
+          }
         }
       }
     }
 
-    const user = await User.findByIdAndUpdate(id, { ...userData }, { new: true, runValidators: true });
+    const user = await User.findByIdAndUpdate(id, allowedUpdates, { new: true, runValidators: true });
     if (!user) {
       req.flash("error", "Student profile could not be updated.");
       return res.redirect("/notes");

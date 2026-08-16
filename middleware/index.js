@@ -33,7 +33,7 @@ exports.isProfileOwner = (req, res, next) => {
 
 // Restricts route access to administrators only.
 exports.isAdmin = (req, res, next) => {
-  if (req.user && (req.user.isAdmin || req.user.username === "admin")) {
+  if (req.user && req.user.isAdmin) {
     return next();
   }
   req.flash("error", "Access denied. Admin authorization required.");

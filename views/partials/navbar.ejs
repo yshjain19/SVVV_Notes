@@ -23,7 +23,7 @@
         <li class="nav-item">
           <a class="nav-link" href="/contact">Contact</a>
         </li>
-        <% if (currentUser && (currentUser.isAdmin || currentUser.username === 'admin')) { %>
+        <% if (currentUser && currentUser.isAdmin) { %>
         <li class="nav-item">
           <a class="nav-link text-primary fw-bold" href="/admin/dashboard">Dashboard</a>
         </li>

@@ -4,17 +4,33 @@ const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const User = require("../models/user");
 const { sendWelcomeEmail } = require("../utils/emailService");
 
+const RESERVED_USERNAMES = [
+  "admin",
+  "administrator",
+  "root",
+  "system",
+  "moderator",
+  "mod",
+  "svvv_admin",
+  "support",
+  "owner",
+  "null",
+  "undefined",
+];
+
 // Helper to generate a unique username from display name or email prefix
 async function generateUniqueUsername(base) {
   let cleanBase = (base || "student")
     .toLowerCase()
     .replace(/[^a-z0-9_]/g, "")
     .slice(0, 20);
-  if (!cleanBase) cleanBase = "student";
+  if (!cleanBase || RESERVED_USERNAMES.includes(cleanBase)) {
+    cleanBase = "student";
+  }
 
   let username = cleanBase;
   let counter = 1;
-  while (await User.findOne({ username })) {
+  while (RESERVED_USERNAMES.includes(username) || (await User.findOne({ username }))) {
     const suffix = Math.floor(1000 + Math.random() * 9000);
     username = `${cleanBase.slice(0, 15)}_${suffix}`;
     counter++;
