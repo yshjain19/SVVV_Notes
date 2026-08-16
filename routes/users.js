@@ -9,7 +9,14 @@ const catchAsync = (fn) => async (req, res, next) => {
   }
 };
 const users = require("../controllers/users");
-const { isLoggedIn, isProfileOwner } = require("../middleware");
+const {
+  isLoggedIn,
+  isProfileOwner,
+  sendOtpLimiter,
+  verifyOtpLimiter,
+  passwordResetRequestLimiter,
+  passwordResetSubmissionLimiter,
+} = require("../middleware");
 
 // Registration creates a user; Passport manages the login session afterwards.
 router
@@ -62,8 +69,8 @@ router.get(
 // ============ OTP & EMAIL VERIFICATION ============
 router
   .route("/send-otp")
-  .get(catchAsync(users.sendOTP))
-  .post(catchAsync(users.sendOTP));
+  .get(sendOtpLimiter, catchAsync(users.sendOTP))
+  .post(sendOtpLimiter, catchAsync(users.sendOTP));
 
 router
   .route("/verify-otp")
@@ -74,18 +81,18 @@ router
       email: req.query.email || "",
     }),
   )
-  .post(catchAsync(users.verifyOTP));
+  .post(verifyOtpLimiter, catchAsync(users.verifyOTP));
 
 // ============ PASSWORD RESET ============
 router
   .route("/forgot-password")
   .get(users.renderForgotPassword)
-  .post(catchAsync(users.sendPasswordReset));
+  .post(passwordResetRequestLimiter, catchAsync(users.sendPasswordReset));
 
 router
   .route("/reset-password/:token")
   .get(catchAsync(users.renderResetPassword))
-  .post(catchAsync(users.resetPassword));
+  .post(passwordResetSubmissionLimiter, catchAsync(users.resetPassword));
 
 // Public profile page showing a student's uploaded notes.
 router.get("/users/:id", catchAsync(users.profile));

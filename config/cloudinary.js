@@ -43,6 +43,7 @@ async function uploadToCloudinary(file) {
     secure_url: file.secure_url || file.path,
     public_id: file.public_id || file.filename,
     url: file.secure_url || file.path,
+
   };
 }
 
