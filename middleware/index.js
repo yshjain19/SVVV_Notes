@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const rateLimit = require("express-rate-limit");
 const Note = require("../models/note");
 
@@ -13,6 +14,10 @@ exports.isLoggedIn = (req, res, next) => {
 
 // Prevents users from editing or deleting notes owned by another student.
 exports.isNoteOwner = async (req, res, next) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    req.flash("error", "Note not found.");
+    return res.redirect("/notes");
+  }
   const note = await Note.findById(req.params.id);
   if (!note || !note.uploadedBy.equals(req.user._id)) {
     req.flash("error", "You can only manage notes you uploaded.");
@@ -25,9 +30,9 @@ exports.isNoteOwner = async (req, res, next) => {
 
 // Prevents users from editing profile page of another student.
 exports.isProfileOwner = (req, res, next) => {
-  if (req.params.id !== req.user._id.toString()) {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id) || req.params.id !== req.user._id.toString()) {
     req.flash("error", "You can only edit your own profile.");
-    return res.redirect(`/users/${req.params.id}`);
+    return res.redirect("/notes");
   }
   next();
 };
@@ -42,6 +47,18 @@ exports.isAdmin = (req, res, next) => {
 };
 
 // ============ RATE LIMITERS FOR AUTH & SENSITIVE ACTIONS ============
+
+// Limit note uploads (max 30 uploads per hour per IP)
+exports.uploadNoteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    req.flash("error", "Upload limit reached. Please wait before sharing more notes.");
+    res.redirect("/notes");
+  },
+});
 
 // Limit OTP send/resend attempts (5 requests per 15 minutes per IP)
 exports.sendOtpLimiter = rateLimit({

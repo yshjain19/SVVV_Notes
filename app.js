@@ -183,15 +183,6 @@ app.get("/", async (req, res, next) => {
       }));
     }
 
-    // Debug log to trace what is being passed to res.render
-    try {
-      const fs = require('fs');
-      const logMsg = `${new Date().toISOString()} - GET / - latestNotes: ${latestNotes.length}, activeSubjects: ${activeSubjects.length}\n`;
-      fs.appendFileSync(path.join(__dirname, 'log.txt'), logMsg);
-    } catch (e) {
-      console.error('Failed to write debug log:', e);
-    }
-
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
       metaDescription: "Your ultimate hub for SVVV study materials, lecture notes, syllabus, previous year papers, and more. Upload notes, track your progress on the leaderboard, and more.",
@@ -351,11 +342,25 @@ app.all("*", (req, res) =>
 
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(err.status || 500).render("error", {
-    pageTitle: "Something went wrong | SVVV_Notes",
+  let status = err.status || 500;
+  let message = err.message || "Please try again in a moment.";
+
+  if (err.name === "CastError") {
+    status = 404;
+    message = "The requested resource could not be found.";
+  } else if (err.name === "ValidationError") {
+    status = 400;
+  }
+
+  if (process.env.NODE_ENV === "production" && status === 500) {
+    message = "An unexpected error occurred. Please try again in a moment.";
+  }
+
+  res.status(status).render("error", {
+    pageTitle: `${status === 404 ? "Not Found" : "Error"} | SVVV_Notes`,
     metaDescription: "An error occurred while processing your request on SVVV_Notes.",
-    status: err.status || 500,
-    message: err.message || "Please try again in a moment.",
+    status,
+    message,
   });
 });
 

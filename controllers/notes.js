@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const mongoose = require("mongoose");
 const Note = require("../models/note");
 const Subject = require("../models/subject");
 const {
@@ -105,8 +106,8 @@ exports.index = async (req, res) => {
     .populate("uploadedBy")
     .populate("subject")
     .sort({ createdAt: -1 });
-  const queryDesc = q ? `matching "${q}"` : "";
-  const semDesc = semester ? `for Semester ${semester}` : "";
+  const queryDesc = rawQ ? `matching "${rawQ}"` : "";
+  const semDesc = rawSemester ? `for Semester ${rawSemester}` : "";
   const filterDesc = [queryDesc, semDesc].filter(Boolean).join(" ");
   const metaDescription = filterDesc
     ? `Explore peer-shared SVVV CSE study notes ${filterDesc}. Download PDFs and lecture materials.`
@@ -116,8 +117,8 @@ exports.index = async (req, res) => {
     pageTitle: "Browse Notes | SVVV_Notes",
     metaDescription,
     notes,
-    q,
-    semester,
+    q: rawQ,
+    semester: rawSemester,
   });
 };
 
@@ -127,22 +128,26 @@ exports.renderNewForm = (req, res) =>
     metaDescription: "Share your handwritten study notes, lecture summaries, or PYQ solutions with fellow SVVV students.",
   });
 
-exports.create = async (req, res) => {
+exports.create = async (req, res, next) => {
   if (!req.file) {
     req.flash("error", "Please upload a file.");
     return res.redirect("/notes/new");
   }
 
-  const subjectName = req.body.note.subject.trim();
-  let subjectDoc = await Subject.findOne({ name: subjectName }).collation({ locale: "en", strength: 2 });
+  const noteData = req.body.note || {};
+  const rawSubject = typeof noteData.subject === "string" ? noteData.subject.trim() : "General";
+  let subjectDoc = await Subject.findOne({ name: rawSubject }).collation({ locale: "en", strength: 2 });
   if (!subjectDoc) {
-    subjectDoc = new Subject({ name: subjectName });
+    subjectDoc = new Subject({ name: rawSubject });
     await subjectDoc.save();
   }
 
   const uploadedFile = await buildFileFromFile(req.file);
 
-  const { title, description, course, semester } = req.body.note;
+  const title = typeof noteData.title === "string" ? noteData.title.trim().slice(0, 150) : "Study Note";
+  const description = typeof noteData.description === "string" ? noteData.description.trim().slice(0, 2000) : "";
+  const course = noteData.course;
+  const semester = noteData.semester;
 
   const note = new Note({
     title,
@@ -153,12 +158,34 @@ exports.create = async (req, res) => {
     fileUrl: uploadedFile.url,
     uploadedBy: req.user._id,
   });
-  await note.save();
-  req.flash("success", "Your note is live and ready to help classmates.");
-  res.redirect(`/notes/${note._id}`);
+
+  try {
+    await note.save();
+    req.flash("success", "Your note is live and ready to help classmates.");
+    res.redirect(`/notes/${note._id}`);
+  } catch (error) {
+    // If saving locally, clean up the file if database save fails
+    if (uploadedFile.url && uploadedFile.url.startsWith("/uploads/")) {
+      await exports.removeStoredFile(uploadedFile.url);
+    }
+    if (error.code === 11000 || (error.name === "MongoServerError" && error.message.includes("E11000"))) {
+      req.flash("error", "A note with this exact title already exists. Please choose a distinctive title.");
+      return res.redirect("/notes/new");
+    }
+    if (error.name === "ValidationError") {
+      req.flash("error", error.message);
+      return res.redirect("/notes/new");
+    }
+    next(error);
+  }
 };
 
 exports.show = async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    req.flash("error", "That note could not be found.");
+    return res.redirect("/notes");
+  }
+
   const note = await Note.findById(req.params.id)
     .populate("uploadedBy")
     .populate("subject");
@@ -182,6 +209,11 @@ exports.show = async (req, res) => {
 };
 
 exports.renderEditForm = async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    req.flash("error", "That note could not be found.");
+    return res.redirect("/notes");
+  }
+
   const note = await Note.findById(req.params.id).populate("subject");
   if (!note) {
     req.flash("error", "That note no longer exists.");
@@ -194,37 +226,56 @@ exports.renderEditForm = async (req, res) => {
   });
 };
 
-exports.update = async (req, res) => {
+exports.update = async (req, res, next) => {
   const note = res.locals.note;
+  const noteData = req.body.note || {};
   
-  const subjectName = req.body.note.subject.trim();
-  let subjectDoc = await Subject.findOne({ name: subjectName }).collation({ locale: "en", strength: 2 });
+  const rawSubject = typeof noteData.subject === "string" ? noteData.subject.trim() : "General";
+  let subjectDoc = await Subject.findOne({ name: rawSubject }).collation({ locale: "en", strength: 2 });
   if (!subjectDoc) {
-    subjectDoc = new Subject({ name: subjectName });
+    subjectDoc = new Subject({ name: rawSubject });
     await subjectDoc.save();
   }
 
-  const { title, description, course, semester } = req.body.note;
+  const title = typeof noteData.title === "string" ? noteData.title.trim().slice(0, 150) : note.title;
+  const description = typeof noteData.description === "string" ? noteData.description.trim().slice(0, 2000) : note.description;
+  const course = noteData.course || note.course;
+  const semester = noteData.semester || note.semester;
+
   note.title = title;
   note.description = description;
   note.course = course;
   note.semester = semester;
   note.subject = subjectDoc._id;
 
+  let uploadedFile = null;
   if (req.file) {
-    await removeStoredFile(note.fileUrl);
-    const uploadedFile = await buildFileFromFile(req.file);
+    uploadedFile = await buildFileFromFile(req.file);
+    const oldUrl = note.fileUrl;
     note.fileUrl = uploadedFile.url;
+    await exports.removeStoredFile(oldUrl);
   }
   
-  await note.save();
-  req.flash("success", "Note updated successfully.");
-  res.redirect(`/notes/${note._id}`);
+  try {
+    await note.save();
+    req.flash("success", "Note updated successfully.");
+    res.redirect(`/notes/${note._id}`);
+  } catch (error) {
+    if (error.code === 11000 || (error.name === "MongoServerError" && error.message.includes("E11000"))) {
+      req.flash("error", "A note with this exact title already exists. Please choose a distinctive title.");
+      return res.redirect(`/notes/${note._id}/edit`);
+    }
+    if (error.name === "ValidationError") {
+      req.flash("error", error.message);
+      return res.redirect(`/notes/${note._id}/edit`);
+    }
+    next(error);
+  }
 };
 
 exports.destroy = async (req, res) => {
   const note = res.locals.note;
-  await removeStoredFile(note.fileUrl);
+  await exports.removeStoredFile(note.fileUrl);
   await note.deleteOne();
   req.flash("success", "Note deleted.");
   res.redirect("/notes");
@@ -232,6 +283,10 @@ exports.destroy = async (req, res) => {
 
 exports.download = async (req, res, next) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      req.flash("error", "Note not found.");
+      return res.redirect("/notes");
+    }
     const note = await Note.findById(req.params.id);
     if (!note) {
       req.flash("error", "Note not found.");

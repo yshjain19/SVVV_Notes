@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const User = require("../models/user");
 const Note = require("../models/note");
 const { sendWelcomeEmail, sendOTPEmail, sendPasswordResetEmail, getBaseUrl } = require("../utils/emailService");
@@ -170,6 +171,15 @@ exports.logout = async (req, res, next) => {
   }
 };
 exports.profile = async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res
+      .status(404)
+      .render("error", {
+        pageTitle: "User Not Found | SVVV_Notes",
+        status: 404,
+        message: "This student profile could not be found.",
+      });
+  }
   const user = await User.findById(req.params.id);
   if (!user)
     return res
@@ -193,6 +203,10 @@ exports.profile = async (req, res) => {
 };
 
 exports.renderEditForm = async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    req.flash("error", "Student profile could not be found.");
+    return res.redirect("/notes");
+  }
   const user = await User.findById(req.params.id);
   if (!user) {
     req.flash("error", "Student profile could not be found.");
@@ -209,6 +223,10 @@ exports.updateProfile = async (req, res, next) => {
   const { id } = req.params;
   const { user: userData = {} } = req.body;
   try {
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      req.flash("error", "Student profile could not be found.");
+      return res.redirect("/notes");
+    }
     const existingUser = await User.findById(id);
     if (!existingUser) {
       req.flash("error", "Student profile could not be found.");

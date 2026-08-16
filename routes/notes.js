@@ -10,7 +10,7 @@ const catchAsync = (fn) => async (req, res, next) => {
   }
 };
 const notes = require("../controllers/notes");
-const { isLoggedIn, isNoteOwner } = require("../middleware");
+const { isLoggedIn, isNoteOwner, uploadNoteLimiter } = require("../middleware");
 
 // Multer keeps uploads in memory so the app can forward them to Cloudinary
 // or save them locally on-demand.
@@ -50,7 +50,7 @@ function uploadFile(field) {
 router
   .route("/")
   .get(catchAsync(notes.index))
-  .post(isLoggedIn, uploadFile("pdf"), catchAsync(notes.create));
+  .post(isLoggedIn, uploadNoteLimiter, uploadFile("pdf"), catchAsync(notes.create));
 router.get("/new", isLoggedIn, notes.renderNewForm);
 // Item routes: public detail view, with owner-only update and deletion actions.
 router
