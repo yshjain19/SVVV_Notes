@@ -58,13 +58,21 @@ exports.removeStoredFile = async function removeStoredFile(fileUrl) {
     return;
   }
   const filename = path.basename(fileUrl);
-  const filePath = path.join(__dirname, "../public/uploads", filename);
+  const uploadDir = path.resolve(__dirname, "../public/uploads");
+  const filePath = path.resolve(uploadDir, filename);
+
+  // Boundary check: ensure filePath is strictly inside the uploadDir
+  if (!filePath.startsWith(uploadDir)) {
+    console.error("Attempted path traversal on file deletion:", fileUrl);
+    return;
+  }
+
   try {
     await fs.promises.unlink(filePath);
   } catch (err) {
     if (err.code !== "ENOENT") throw err;
   }
-}
+};
 
 exports.index = async (req, res) => {
   const { q = "", semester = "" } = req.query;

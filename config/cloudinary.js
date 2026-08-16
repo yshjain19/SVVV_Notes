@@ -46,10 +46,24 @@ async function uploadToCloudinary(file) {
   };
 }
 
+const crypto = require("crypto");
+
 async function saveFileLocally(file) {
-  const filename = `${Date.now()}-${file.originalname}`;
-  const filePath = path.join(__dirname, "../public/uploads", filename);
-  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+  const allowedExts = [".pdf", ".png", ".jpg", ".jpeg"];
+  const rawExt = path.extname(file.originalname || "").toLowerCase();
+  const safeExt = allowedExts.includes(rawExt) ? rawExt : ".pdf";
+
+  // Use crypto.randomUUID to guarantee a safe, unique filename immune to path traversal
+  const filename = `${Date.now()}-${crypto.randomUUID()}${safeExt}`;
+  const uploadDir = path.resolve(__dirname, "../public/uploads");
+  const filePath = path.join(uploadDir, filename);
+
+  // Boundary check: ensure the resolved file path cannot escape the upload directory
+  if (!filePath.startsWith(uploadDir)) {
+    throw new Error("Invalid file destination path.");
+  }
+
+  await fs.promises.mkdir(uploadDir, { recursive: true });
   await fs.promises.writeFile(filePath, file.buffer);
   return {
     url: `/uploads/${filename}`,
