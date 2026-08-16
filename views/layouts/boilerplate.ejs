@@ -229,7 +229,7 @@
     }
   %>
   <script type="application/ld+json">
-  <%- JSON.stringify(structuredData, null, 2) %>
+  <%- JSON.stringify(structuredData, null, 2).replace(/</g, '\\u003c') %>
   </script>
 </head>
 

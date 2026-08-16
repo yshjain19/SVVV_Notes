@@ -75,23 +75,28 @@ exports.removeStoredFile = async function removeStoredFile(fileUrl) {
 };
 
 exports.index = async (req, res) => {
-  const { q = "", semester = "" } = req.query;
+  const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
+  const rawSemester = typeof req.query.semester === "string" ? req.query.semester.trim() : "";
+  
   const filter = {};
   
-  if (semester) filter.semester = semester;
+  if (rawSemester) filter.semester = rawSemester;
 
-  if (q) {
+  if (rawQ) {
     const Subject = require("../models/subject");
-    // Find subjects matching the query case-insensitively
+    // Escape all regex special characters to prevent ReDoS and regex injection
+    const escapedQ = rawQ.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    
+    // Find subjects matching the escaped query case-insensitively
     const matchingSubjects = await Subject.find({
-      name: { $regex: q, $options: 'i' }
+      name: { $regex: escapedQ, $options: "i" }
     });
     const matchingSubjectIds = matchingSubjects.map(s => s._id);
 
     // Search by title/description matching query OR subject ID matching matchingSubjectIds
     filter.$or = [
-      { title: { $regex: q, $options: 'i' } },
-      { description: { $regex: q, $options: 'i' } },
+      { title: { $regex: escapedQ, $options: "i" } },
+      { description: { $regex: escapedQ, $options: "i" } },
       { subject: { $in: matchingSubjectIds } }
     ];
   }

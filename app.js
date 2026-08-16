@@ -56,9 +56,21 @@ app.use(express.static(path.join(__dirname, "public")));
 // Serve locally stored PDFs when Cloudinary credentials are not configured.
 app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 
+const sessionSecret =
+  process.env.SESSION_SECRET ||
+  (process.env.NODE_ENV === "production"
+    ? undefined
+    : "svvv-notes-dev-fallback-session-secret-key");
+
+if (!sessionSecret) {
+  throw new Error(
+    "SESSION_SECRET is required in production. Add a strong SESSION_SECRET to your environment variables.",
+  );
+}
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     // Atlas-backed sessions survive a Render/Railway process restart.

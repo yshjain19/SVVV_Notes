@@ -97,6 +97,14 @@ exports.register = async (req, res, next) => {
     next(error);
   }
 };
+// Helper to validate that a redirect URL is strictly an internal relative path
+function getSafeRedirectUrl(url, defaultUrl = "/notes") {
+  if (typeof url === "string" && url.startsWith("/") && !url.startsWith("//") && !url.includes("\\")) {
+    return url;
+  }
+  return defaultUrl;
+}
+
 exports.renderLogin = (req, res) =>
   res.render("users/login", {
     pageTitle: "Sign In | SVVV_Notes",
@@ -133,8 +141,8 @@ exports.login = async (req, res, next) => {
 
   const displayName = req.user.fullName || req.user.username || "Student";
   req.flash("success", `Welcome back, ${displayName}!`);
-  // Continue to notes / dashboard
-  const redirectUrl = req.session.returnTo || "/notes";
+  // Continue to notes / dashboard (with safe redirect check)
+  const redirectUrl = getSafeRedirectUrl(req.session.returnTo, "/notes");
   delete req.session.returnTo;
   res.redirect(redirectUrl);
 };
@@ -142,7 +150,7 @@ exports.googleCallback = async (req, res, next) => {
   try {
     const displayName = req.user.fullName || req.user.username || "Student";
     req.flash("success", `Signed in successfully with Google! Welcome back, ${displayName}.`);
-    const redirectUrl = req.session.returnTo || "/notes";
+    const redirectUrl = getSafeRedirectUrl(req.session.returnTo, "/notes");
     delete req.session.returnTo;
     res.redirect(redirectUrl);
   } catch (error) {
@@ -374,7 +382,7 @@ exports.verifyOTP = async (req, res, next) => {
         "success",
         `Welcome to SVVV_Notes, ${user.fullName || user.username}! Your account has been verified.`,
       );
-      const redirectUrl = req.session.returnTo || "/notes";
+      const redirectUrl = getSafeRedirectUrl(req.session.returnTo, "/notes");
       delete req.session.returnTo;
       return res.redirect(redirectUrl);
     });
