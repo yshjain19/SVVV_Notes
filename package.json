@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@urbackend/sdk": "^0.4.7",
-    "cloudinary": "^2.10.0",
+    "cloudinary": "^1.41.3",
     "connect-flash": "^0.1.1",
     "connect-mongo": "^5.1.0",
     "dotenv": "^16.4.7",
