@@ -17,8 +17,8 @@ document.querySelectorAll(".needs-validation").forEach((form) =>
             btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Creating Account...`;
           } else if (btnText === "Sign In") {
             btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing In...`;
-          } else if (btnText === "Upload Note" || btnText === "Save Changes") {
-            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...`;
+          } else if (btnText.includes("Upload") || btnText.includes("Publish") || btnText.includes("Save")) {
+            btn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Uploading...`;
           }
         }, 10);
       });
@@ -26,6 +26,34 @@ document.querySelectorAll(".needs-validation").forEach((form) =>
     form.classList.add("was-validated");
   }),
 );
+
+// Client-side file size & format validation (100 MB Cloudinary standard max)
+document.querySelectorAll('input[type="file"][name="pdf"]').forEach((input) => {
+  input.addEventListener("change", () => {
+    const file = input.files && input.files[0];
+    const maxSizeBytes = 100 * 1024 * 1024; // 100 MB
+    const allowedExts = [".pdf", ".png", ".jpg", ".jpeg"];
+
+    if (file) {
+      const fileName = file.name.toLowerCase();
+      const isValidExt = allowedExts.some((ext) => fileName.endsWith(ext));
+
+      if (!isValidExt) {
+        alert("Invalid file format. Please choose a PDF or image (.pdf, .png, .jpg, .jpeg).");
+        input.value = "";
+        return;
+      }
+
+      if (file.size > maxSizeBytes) {
+        const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
+        alert(`File is too large (${sizeInMb} MB). Maximum allowed size is 100 MB.`);
+        input.value = "";
+        return;
+      }
+    }
+  });
+});
+
 // Deleting a note is irreversible, so require an explicit confirmation first.
 document.querySelectorAll("form[data-confirm]").forEach((form) =>
   form.addEventListener("submit", (event) => {
