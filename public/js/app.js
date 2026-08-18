@@ -27,11 +27,11 @@ document.querySelectorAll(".needs-validation").forEach((form) =>
   }),
 );
 
-// Client-side file size & format validation (100 MB Cloudinary standard max)
+// Client-side file size & format validation (10 MB Cloudinary standard free tier max)
 document.querySelectorAll('input[type="file"][name="pdf"]').forEach((input) => {
   input.addEventListener("change", () => {
     const file = input.files && input.files[0];
-    const maxSizeBytes = 100 * 1024 * 1024; // 100 MB
+    const maxSizeBytes = 10 * 1024 * 1024; // 10 MB (10,485,760 bytes)
     const allowedExts = [".pdf", ".png", ".jpg", ".jpeg"];
 
     if (file) {
@@ -46,7 +46,7 @@ document.querySelectorAll('input[type="file"][name="pdf"]').forEach((input) => {
 
       if (file.size > maxSizeBytes) {
         const sizeInMb = (file.size / (1024 * 1024)).toFixed(1);
-        alert(`File is too large (${sizeInMb} MB). Maximum allowed size is 100 MB.`);
+        alert(`File is too large (${sizeInMb} MB). Maximum allowed size on Cloudinary free plan is 10 MB.`);
         input.value = "";
         return;
       }

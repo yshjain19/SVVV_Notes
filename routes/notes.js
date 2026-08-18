@@ -16,7 +16,7 @@ const { isLoggedIn, isNoteOwner, uploadNoteLimiter } = require("../middleware");
 // or save them locally on-demand.
 const upload = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB (10,485,760 bytes - Cloudinary Free Plan maximum limit)
   fileFilter: (req, file, cb) => {
     const allowedExts = [".pdf", ".png", ".jpg", ".jpeg"];
     const ext = path.extname(file.originalname).toLowerCase();
@@ -34,8 +34,11 @@ function uploadFile(field) {
   return (req, res, next) => {
     mw(req, res, (err) => {
       if (!err) return next();
-      if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
-        req.flash("error", "File must be under 100 MB.");
+      if (
+        (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") ||
+        (err.message && err.message.toLowerCase().includes("file size too large"))
+      ) {
+        req.flash("error", "File is too large. Maximum allowed file size on Cloudinary free tier is 10 MB.");
         return res.redirect("back");
       }
       if (err) {
