@@ -1,6 +1,7 @@
 {
   "name": "SVVV_Notes",
   "short_name": "SVVV_Notes",
+  "description": "Your ultimate hub for SVVV study materials, lecture Notes, semester-wise syllabus, and previous year papers (PYQs). Upload notes and learn together on SVVV_Notes.",
   "icons": [
     {
       "src": "/favicon-48x48.png",

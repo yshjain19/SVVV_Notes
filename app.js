@@ -185,7 +185,7 @@ app.get("/", async (req, res, next) => {
 
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
-      metaDescription: "Your ultimate hub for SVVV study materials, lecture notes, syllabus, previous year papers, and more. Upload notes, track your progress on the leaderboard, and more.",
+      metaDescription: "Your ultimate hub for SVVV study materials, lecture Notes, semester-wise syllabus, and previous year papers (PYQs). Upload notes and learn together on SVVV_Notes.",
       latestNotes,
       activeSubjects,
     });
