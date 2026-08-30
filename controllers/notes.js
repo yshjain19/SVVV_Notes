@@ -1,14 +1,8 @@
-const fs = require("fs");
 const path = require("path");
 const mongoose = require("mongoose");
 const Note = require("../models/note");
 const Subject = require("../models/subject");
-const {
-  cloudinary,
-  hasCloudinary,
-  uploadToCloudinary,
-  saveFileLocally,
-} = require("../config/cloudinary");
+const { cloudinary } = require("../config/cloudinary");
 
 function parseCloudinaryUrl(url) {
   if (!url) return null;
@@ -30,48 +24,25 @@ function parseCloudinaryUrl(url) {
   return null;
 }
 
-async function buildFileFromFile(file) {
-  if (hasCloudinary) {
-    const uploaded = await uploadToCloudinary(file);
-    return {
-      url: uploaded.secure_url || uploaded.url,
-      filename: uploaded.public_id,
-      contentType: file.mimetype,
-    };
-  }
-  const saved = await saveFileLocally(file);
+function buildFileFromFile(file) {
   return {
-    url: saved.url,
-    filename: saved.filename,
+    url: file.path || file.secure_url || file.url,
+    filename: file.filename || file.public_id,
     contentType: file.mimetype,
   };
 }
 
 exports.removeStoredFile = async function removeStoredFile(fileUrl) {
   if (!fileUrl) return;
-  if (hasCloudinary) {
+  try {
     const parsed = parseCloudinaryUrl(fileUrl);
-    if (parsed) {
+    if (parsed && parsed.publicId) {
       await cloudinary.uploader.destroy(parsed.publicId, {
-        resource_type: parsed.resourceType,
+        resource_type: parsed.resourceType || "image",
       });
     }
-    return;
-  }
-  const filename = path.basename(fileUrl);
-  const uploadDir = path.resolve(__dirname, "../public/uploads");
-  const filePath = path.resolve(uploadDir, filename);
-
-  // Boundary check: ensure filePath is strictly inside the uploadDir
-  if (!filePath.startsWith(uploadDir)) {
-    console.error("Attempted path traversal on file deletion:", fileUrl);
-    return;
-  }
-
-  try {
-    await fs.promises.unlink(filePath);
   } catch (err) {
-    if (err.code !== "ENOENT") throw err;
+    console.error("Failed to delete file from Cloudinary:", err);
   }
 };
 
@@ -164,8 +135,8 @@ exports.create = async (req, res, next) => {
     req.flash("success", "Your note is live and ready to help classmates.");
     res.redirect(`/notes/${note._id}`);
   } catch (error) {
-    // If saving locally, clean up the file if database save fails
-    if (uploadedFile.url && uploadedFile.url.startsWith("/uploads/")) {
+    // Clean up uploaded Cloudinary file if database save fails
+    if (uploadedFile.url) {
       await exports.removeStoredFile(uploadedFile.url);
     }
     if (error.code === 11000 || (error.name === "MongoServerError" && error.message.includes("E11000"))) {
