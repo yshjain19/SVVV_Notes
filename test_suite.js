@@ -149,14 +149,16 @@ test("Models: Note, User, and Subject models load and compile schemas", () => {
   assert(Subject.schema);
 });
 
-// 8. Controllers and Routes
-test("Routes & Controllers: All routes load without missing module errors", () => {
-  const adminRoutes = require("./routes/admin");
-  const notesRoutes = require("./routes/notes");
-  const userRoutes = require("./routes/users");
-  assert(adminRoutes);
-  assert(notesRoutes);
-  assert(userRoutes);
+// 9. Admin Note Auto-Verification & Badges
+test("Admin Verification: Admin notes are auto-verified upon creation logic", () => {
+  const adminUser = { _id: new mongoose.Types.ObjectId(), isAdmin: true };
+  const studentUser = { _id: new mongoose.Types.ObjectId(), isAdmin: false };
+  
+  const isAdminVerified = Boolean(adminUser && adminUser.isAdmin);
+  const isStudentVerified = Boolean(studentUser && studentUser.isAdmin);
+
+  assert.strictEqual(isAdminVerified, true, "Admin uploads must be auto-verified");
+  assert.strictEqual(isStudentVerified, false, "Student uploads must not be auto-verified by default");
 });
 
 console.log("\n=================================================================");

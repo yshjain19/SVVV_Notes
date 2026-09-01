@@ -120,6 +120,8 @@ exports.create = async (req, res, next) => {
   const course = noteData.course;
   const semester = noteData.semester;
 
+  const isVerified = Boolean(req.user && req.user.isAdmin);
+
   const note = new Note({
     title,
     description,
@@ -128,6 +130,7 @@ exports.create = async (req, res, next) => {
     subject: subjectDoc._id,
     fileUrl: uploadedFile.url,
     uploadedBy: req.user._id,
+    isVerified,
   });
 
   try {

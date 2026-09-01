@@ -180,7 +180,12 @@
                         <%= (u.username || 'U').charAt(0).toUpperCase() %>
                       </span>
                       <div>
-                        <p class="mb-0 text-dark" style="font-size: 0.88rem;"><%= u.fullName || u.username %></p>
+                        <p class="mb-0 text-dark d-flex align-items-center gap-1" style="font-size: 0.88rem;">
+                          <%= u.fullName || u.username %>
+                          <% if (u.isAdmin) { %>
+                            <i class="bi bi-patch-check-fill text-primary" title="Verified Admin" style="font-size: 0.85em;"></i>
+                          <% } %>
+                        </p>
                         <% if (u.fullName) { %>
                           <span class="text-secondary text-muted" style="font-size: 0.75rem; font-weight: normal;">@<%= u.username %></span>
                         <% } %>
@@ -219,7 +224,12 @@
                   <%= (selectedUser.username || 'S').charAt(0).toUpperCase() %>
                 </div>
                 <div>
-                  <h2 class="mb-0 fw-bold h4 text-dark"><%= selectedUser.fullName || selectedUser.username %></h2>
+                  <h2 class="mb-0 fw-bold h4 text-dark d-flex align-items-center gap-2">
+                    <%= selectedUser.fullName || selectedUser.username %>
+                    <% if (selectedUser.isAdmin) { %>
+                      <i class="bi bi-patch-check-fill text-primary" title="Verified Admin" style="font-size: 0.85em;"></i>
+                    <% } %>
+                  </h2>
                   <div class="d-flex gap-2 align-items-center mt-1">
                     <span class="text-muted" style="font-size: 0.8rem;">@<%= selectedUser.username %></span>
                     <span class="badge <%= selectedUser.isAdmin ? 'bg-primary' : 'bg-secondary' %>" style="font-size: 0.65rem;">

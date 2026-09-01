@@ -41,25 +41,35 @@
       </div>
       <div class="col-lg-4">
         <aside class="detail-card">
-          <span class="tag"><%=note.subject && note.subject.name ? note.subject.name : note.subject%></span>
+          <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+            <span class="tag mb-0"><%=note.subject && note.subject.name ? note.subject.name : note.subject%></span>
+            <% if (note.isVerified) { %>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1" style="font-size: 0.75rem; border-radius: 9999px; padding: 4px 10px;" title="Verified Note">
+                <i class="bi bi-patch-check-fill text-primary"></i> Verified Note
+              </span>
+            <% } %>
+          </div>
           <h1><%=note.title%></h1>
           <p class="detail-description"><%=note.description%></p>
           <div class="meta-list">
             <% if(note.course){ %>
             <div>
-              <i class="bi bi-book"></i><span>Course</span
-              ><strong><%=note.course%></strong>
+              <i class="bi bi-book"></i><span>Course</span>
+              <strong><%=note.course%></strong>
             </div>
             <% } %>
             <div>
-              <i class="bi bi-layers"></i><span>Semester</span
-              ><strong><%=note.semester%></strong>
+              <i class="bi bi-layers"></i><span>Semester</span>
+              <strong><%=note.semester%></strong>
             </div>
             <div>
-              <i class="bi bi-person"></i><span>Shared by</span
-              ><a href="/users/<%=note.uploadedBy ? note.uploadedBy._id : ''%>"
-                ><%=note.uploadedBy ? note.uploadedBy.username : 'Unknown'%></a
-              >
+              <i class="bi bi-person"></i><span>Shared by</span>
+              <a href="/users/<%=note.uploadedBy ? note.uploadedBy._id : ''%>" class="d-inline-flex align-items-center gap-1">
+                <%=note.uploadedBy ? (note.uploadedBy.fullName || note.uploadedBy.username) : 'Unknown'%>
+                <% if(note.uploadedBy && note.uploadedBy.isAdmin){ %>
+                  <i class="bi bi-patch-check-fill text-primary" title="Verified Admin" style="font-size: 0.9em;"></i>
+                <% } %>
+              </a>
             </div>
             <div>
               <i class="bi bi-calendar3"></i><span>Added</span

@@ -9,8 +9,20 @@
         />
       </div>
       <div class="d-flex flex-column gap-1">
-        <span class="section-kicker mb-1">STUDENT PROFILE</span>
-        <h1 class="mb-0 fw-bold"><%= user.fullName || user.username %></h1>
+        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+          <span class="section-kicker mb-0"><%= user.isAdmin ? 'ADMIN PROFILE' : 'STUDENT PROFILE' %></span>
+          <% if (user.isAdmin) { %>
+            <span class="badge bg-primary text-white d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; border-radius: 9999px; padding: 2px 8px;">
+              <i class="bi bi-patch-check-fill"></i> Admin
+            </span>
+          <% } %>
+        </div>
+        <h1 class="mb-0 fw-bold d-inline-flex align-items-center gap-2">
+          <%= user.fullName || user.username %>
+          <% if (user.isAdmin) { %>
+            <i class="bi bi-patch-check-fill text-primary" title="Verified Admin" style="font-size: 0.9em;"></i>
+          <% } %>
+        </h1>
         <% if (user.fullName) { %>
           <span class="text-muted" style="font-size: 0.85rem; margin-top: -2px;">@<%= user.username %></span>
         <% } %>
