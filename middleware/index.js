@@ -111,4 +111,16 @@ exports.passwordResetSubmissionLimiter = rateLimit({
   },
 });
 
+// Limit note requests creation (15 requests per hour per IP)
+exports.createRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    req.flash("error", "Request limit reached. Please wait before posting more note requests.");
+    res.redirect("/requests");
+  },
+});
+
 

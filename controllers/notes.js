@@ -97,6 +97,13 @@ exports.renderNewForm = (req, res) =>
   res.render("notes/new", {
     pageTitle: "Upload a Note | SVVV_Notes",
     metaDescription: "Share your handwritten study notes, lecture summaries, or PYQ solutions with fellow SVVV students.",
+    prefill: {
+      title: typeof req.query.title === "string" ? req.query.title.trim() : "",
+      subject: typeof req.query.subject === "string" ? req.query.subject.trim() : "",
+      course: typeof req.query.course === "string" ? req.query.course.trim() : "",
+      semester: typeof req.query.semester === "string" ? req.query.semester.trim() : "",
+      requestId: typeof req.query.requestId === "string" ? req.query.requestId.trim() : "",
+    },
   });
 
 exports.create = async (req, res, next) => {
@@ -135,6 +142,21 @@ exports.create = async (req, res, next) => {
 
   try {
     await note.save();
+
+    // If this note was uploaded in response to a community Note Request, link and fulfill the request
+    const requestId = req.body.requestId || req.query.requestId;
+    if (requestId && mongoose.Types.ObjectId.isValid(requestId)) {
+      try {
+        const NoteRequest = require("../models/noteRequest");
+        await NoteRequest.findByIdAndUpdate(requestId, {
+          status: "Fulfilled",
+          fulfilledWith: note._id,
+        });
+      } catch (err) {
+        console.error("Could not link NoteRequest to uploaded Note:", err.message);
+      }
+    }
+
     req.flash("success", "Your note is live and ready to help classmates.");
     res.redirect(`/notes/${note._id}`);
   } catch (error) {

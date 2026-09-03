@@ -1,0 +1,138 @@
+<% layout('layouts/boilerplate') %>
+<section class="page-hero">
+  <div class="container">
+    <div class="eyebrow"><span></span>COMMUNITY STUDY REQUESTS</div>
+    <h1 class="text-center">Request & Find Study Notes</h1>
+    <p class="text-center">Can't find notes for a subject or unit? Post a request to notify the whole SVVV student community via email!</p>
+    
+    <div class="d-flex justify-content-center gap-3 mt-4 flex-wrap">
+      <a href="/requests/new" class="btn btn-primary px-4 shadow-sm">
+        <i class="bi bi-megaphone-fill me-2"></i>Request Notes
+      </a>
+      <a href="/notes" class="btn btn-light px-4">
+        <i class="bi bi-journal-text me-2"></i>Browse Library
+      </a>
+    </div>
+
+    <!-- Filters & Search Form -->
+    <form class="library-search mt-4" action="/requests" method="GET">
+      <i class="bi bi-search"></i>
+      <input name="q" value="<%= q %>" placeholder="Search requests by topic, subject or description..." />
+      <select name="status" onchange="this.form.submit()">
+        <option value="all" <%= status === 'all' || !status ? 'selected' : '' %>>All Statuses</option>
+        <option value="Open" <%= status === 'Open' ? 'selected' : '' %>>⏳ Open Requests</option>
+        <option value="Fulfilled" <%= status === 'Fulfilled' ? 'selected' : '' %>>✅ Fulfilled</option>
+      </select>
+      <select name="semester" onchange="this.form.submit()">
+        <option value="">All semesters</option>
+        <% const semesters = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]; %>
+        <% for(let sem of semesters){ %>
+        <option value="<%=sem%>" <%= semester===sem ? 'selected' : '' %>>Semester <%=sem%></option>
+        <% } %>
+      </select>
+      <select name="course" onchange="this.form.submit()">
+        <option value="">All courses</option>
+        <% const courses = ["B.Tech CSE", "B.Tech IT", "B.Tech ECE", "B.Tech ME", "MBA", "BBA", "MCA", "BCA"]; %>
+        <% for(let c of courses){ %>
+        <option value="<%=c%>" <%= course===c ? 'selected' : '' %>><%=c%></option>
+        <% } %>
+      </select>
+      <button class="btn btn-primary">Search</button>
+    </form>
+  </div>
+</section>
+
+<section class="py-5">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <div>
+        <p class="mb-0 text-secondary">
+          <strong class="text-dark"><%= requests.length %></strong> request<%= requests.length === 1 ? '' : 's' %> found<%= q ? ` matching “${q}”` : '' %>
+        </p>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/requests?status=Open" class="badge bg-light text-primary border text-decoration-none px-3 py-2 <%= status === 'Open' ? 'border-primary' : '' %>">
+          ⏳ <%= totalOpenCount %> Open
+        </a>
+        <a href="/requests?status=Fulfilled" class="badge bg-light text-success border text-decoration-none px-3 py-2 <%= status === 'Fulfilled' ? 'border-success' : '' %>">
+          ✅ <%= totalFulfilledCount %> Fulfilled
+        </a>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <% if(requests.length){ %>
+        <% requests.forEach(reqItem => { %>
+        <div class="col-md-6 col-lg-4">
+          <div class="feature-card d-flex flex-column h-100 position-relative">
+            <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+              <span class="tag"><i class="bi bi-journal-bookmark me-1"></i><%= reqItem.subject %></span>
+              <% if(reqItem.status === 'Fulfilled'){ %>
+                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
+                  <i class="bi bi-check2-circle me-1"></i>Fulfilled
+                </span>
+              <% } else { %>
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 rounded-pill">
+                  <i class="bi bi-hourglass-split me-1"></i>Open Request
+                </span>
+              <% } %>
+            </div>
+
+            <h3 class="mt-2 mb-2" style="font-size: 1.05rem; line-height: 1.4;">
+              <a href="/requests/<%= reqItem._id %>" class="text-dark text-decoration-none">
+                <%= reqItem.title %>
+              </a>
+            </h3>
+
+            <p class="text-secondary small mb-3 flex-grow-1" style="display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">
+              <%= reqItem.description || "No extra details provided. Notes for this subject and unit are requested." %>
+            </p>
+
+            <div class="d-flex align-items-center gap-2 mb-3 small text-muted">
+              <span><i class="bi bi-mortarboard me-1"></i><%= reqItem.course %></span>
+              <span>•</span>
+              <span>Sem <%= reqItem.semester %></span>
+            </div>
+
+            <div class="border-top pt-3 mt-auto d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center gap-2">
+                <span class="avatar-sm" style="width: 28px; height: 28px; font-size: 0.75rem;">
+                  <%= (reqItem.requestedBy?.fullName || reqItem.requestedBy?.username || 'S').charAt(0).toUpperCase() %>
+                </span>
+                <div class="small">
+                  <span class="d-block text-dark fw-semibold" style="line-height: 1.2;">
+                    <%= reqItem.requestedBy?.fullName || reqItem.requestedBy?.username || 'Student' %>
+                  </span>
+                  <span class="text-muted" style="font-size: 0.7rem;">
+                    <%= new Date(reqItem.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) %>
+                  </span>
+                </div>
+              </div>
+
+              <% if(reqItem.status === 'Fulfilled' && reqItem.fulfilledWith){ %>
+                <a href="/notes/<%= reqItem.fulfilledWith._id %>" class="btn btn-sm btn-outline-success">
+                  <i class="bi bi-file-earmark-check me-1"></i>View Note
+                </a>
+              <% } else { %>
+                <a href="/notes/new?subject=<%= encodeURIComponent(reqItem.subject) %>&course=<%= encodeURIComponent(reqItem.course) %>&semester=<%= encodeURIComponent(reqItem.semester) %>&requestId=<%= reqItem._id %>" class="btn btn-sm btn-soft">
+                  <i class="bi bi-cloud-arrow-up me-1"></i>Upload Note
+                </a>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      <% } else { %>
+        <div class="empty-state">
+          <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+          <h2>No note requests found</h2>
+          <p class="text-secondary">Be the first to request study materials or try adjusting your search filters.</p>
+          <div class="d-flex justify-content-center gap-3 mt-3">
+            <a href="/requests" class="btn btn-light">Clear Filters</a>
+            <a href="/requests/new" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Create a Request</a>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,111 @@
+<% layout('layouts/boilerplate') %>
+<section class="form-shell">
+  <div class="container">
+    <div class="form-heading">
+      <a href="/requests" class="back-link">
+        <i class="bi bi-arrow-left"></i> Back to requests
+      </a>
+      <span class="section-kicker">COMMUNITY KNOWLEDGE EXCHANGE</span>
+      <h1>Request Study Notes</h1>
+      <p>
+        Can't find notes or solutions for a particular unit or subject? Ask your classmates.
+      </p>
+    </div>
+
+    <!-- Email Broadcast Notification Highlight Card -->
+    <div class="card border-0 shadow-sm mb-4" style="max-width: 780px; margin: 0 auto; background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%); border: 1.5px solid #c7d2fe !important; border-radius: var(--radius);">
+      <div class="card-body p-4 d-flex align-items-start gap-3">
+        <div class="rounded-circle p-3 d-flex align-items-center justify-content-center flex-shrink-0" style="background: #4f46e5; color: #fff; width: 48px; height: 48px; font-size: 1.3rem;">
+          <i class="bi bi-envelope-paper-heart-fill"></i>
+        </div>
+        <div>
+          <h5 class="fw-bold text-dark mb-1" style="font-size: 1rem;">
+            Automatic Community Email Broadcast 📢
+          </h5>
+          <p class="text-secondary small mb-0" style="line-height: 1.5;">
+            Once you post this request, an email notification will be automatically delivered to every registered student on SVVV Notes. Classmates who have these notes can click the email link to upload them directly for you!
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <form class="upload-card needs-validation" action="/requests" method="POST" novalidate>
+      <div class="row g-4">
+        <div class="col-md-8">
+          <label class="form-label">Note Topic / Title <span class="text-danger">*</span></label>
+          <input
+            class="form-control"
+            name="request[title]"
+            required
+            maxlength="150"
+            placeholder="e.g. Unit 3 Process Synchronization Notes & PYQs"
+          />
+          <div class="invalid-feedback">Please specify what notes or topics you need.</div>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Subject Name <span class="text-danger">*</span></label>
+          <input
+            class="form-control"
+            name="request[subject]"
+            required
+            maxlength="100"
+            value="<%= typeof prefillSubject !== 'undefined' ? prefillSubject : '' %>"
+            placeholder="e.g. Operating Systems"
+          />
+          <div class="invalid-feedback">Please enter the subject name.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Course / Branch <span class="text-danger">*</span></label>
+          <select class="form-select" name="request[course]" required>
+            <option value="">Select your course</option>
+            <% const courses = ["B.Tech CSE", "B.Tech IT", "B.Tech ECE", "B.Tech ME", "MBA", "BBA", "MCA", "BCA"]; %>
+            <% for(let c of courses){ %>
+            <option value="<%=c%>" <%= (typeof prefillCourse !== 'undefined' && prefillCourse === c) ? 'selected' : '' %>><%=c%></option>
+            <% } %>
+          </select>
+          <div class="invalid-feedback">Please choose your course.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label">Semester <span class="text-danger">*</span></label>
+          <select class="form-select" name="request[semester]" required>
+            <option value="">Select semester</option>
+            <% const semesters = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]; %>
+            <% for(let sem of semesters){ %>
+            <option value="<%=sem%>" <%= (typeof prefillSemester !== 'undefined' && prefillSemester === sem) ? 'selected' : '' %>>Semester <%=sem%></option>
+            <% } %>
+          </select>
+          <div class="invalid-feedback">Please choose the semester.</div>
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Details / Specific Requirements (Optional)</label>
+          <textarea
+            class="form-control"
+            rows="4"
+            name="request[description]"
+            maxlength="2000"
+            placeholder="Mention any specific chapters, questions, handwritten preference, teacher notes, or impending exam dates..."
+          ></textarea>
+          <div class="form-text">Adding clear details helps peers find the exact study material you need.</div>
+        </div>
+      </div>
+
+      <div class="upload-tip">
+        <i class="bi bi-info-circle-fill"></i>
+        <span>
+          <strong>Pro-tip:</strong> When someone uploads notes for your request, you can link the note and mark your request as fulfilled so everyone knows it was resolved.
+        </span>
+      </div>
+
+      <div class="d-flex justify-content-end gap-3 mt-4">
+        <a href="/requests" class="btn btn-light">Cancel</a>
+        <button class="btn btn-primary px-4">
+          <i class="bi bi-send-fill me-2"></i>Post Request & Notify Students
+        </button>
+      </div>
+    </form>
+  </div>
+</section>

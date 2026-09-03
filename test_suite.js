@@ -140,16 +140,56 @@ test("Rate Limiting: All rate limiters are configured with standard headers", ()
 });
 
 // 7. Models and Schemas
-test("Models: Note, User, and Subject models load and compile schemas", () => {
+test("Models: Note, User, Subject, and NoteRequest models load and compile schemas", () => {
   const User = require("./models/user");
   const Note = require("./models/note");
   const Subject = require("./models/subject");
+  const NoteRequest = require("./models/noteRequest");
   assert(User.schema);
   assert(Note.schema);
   assert(Subject.schema);
+  assert(NoteRequest.schema);
+  assert(NoteRequest.schema.path("title"));
+  assert(NoteRequest.schema.path("status"));
+  assert.strictEqual(NoteRequest.schema.path("status").defaultValue, "Open");
 });
 
-// 9. Admin Note Auto-Verification & Badges
+// 8. Note Request & Email Service Functions
+test("Email Service: Note request broadcast functions are exported and callable", () => {
+  const emailService = require("./utils/emailService");
+  assert.strictEqual(typeof emailService.sendNoteRequestBroadcastEmail, "function");
+  assert.strictEqual(typeof emailService.broadcastNoteRequest, "function");
+});
+
+test("NoteRequest: Instantiates schema properly with valid course and semester", () => {
+  const NoteRequest = require("./models/noteRequest");
+  const sampleRequest = new NoteRequest({
+    title: "Need Unit 3 Cloud Computing Notes",
+    subject: "Cloud Computing",
+    course: "B.Tech CSE",
+    semester: "VI",
+    description: "Looking for AWS architecture diagrams and virtualization summaries",
+    requestedBy: new mongoose.Types.ObjectId(),
+  });
+  assert.strictEqual(sampleRequest.title, "Need Unit 3 Cloud Computing Notes");
+  assert.strictEqual(sampleRequest.subject, "Cloud Computing");
+  assert.strictEqual(sampleRequest.status, "Open");
+  assert.strictEqual(sampleRequest.course, "B.Tech CSE");
+  assert.strictEqual(sampleRequest.semester, "VI");
+});
+
+// 9. Rate Limiters Initialization
+test("Rate Limiting: All rate limiters including createRequestLimiter are configured", () => {
+  const mw = require("./middleware");
+  assert(typeof mw.sendOtpLimiter === "function");
+  assert(typeof mw.verifyOtpLimiter === "function");
+  assert(typeof mw.passwordResetRequestLimiter === "function");
+  assert(typeof mw.passwordResetSubmissionLimiter === "function");
+  assert(typeof mw.uploadNoteLimiter === "function");
+  assert(typeof mw.createRequestLimiter === "function");
+});
+
+// 10. Admin Note Auto-Verification & Badges
 test("Admin Verification: Admin notes are auto-verified upon creation logic", () => {
   const adminUser = { _id: new mongoose.Types.ObjectId(), isAdmin: true };
   const studentUser = { _id: new mongoose.Types.ObjectId(), isAdmin: false };

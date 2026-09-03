@@ -710,11 +710,332 @@ async function sendWelcomeEmail(toEmail, name) {
   });
 }
 
+/**
+ * Sends an email notification to a student informing them about a note request.
+ *
+ * @param {string} toEmail - Recipient email address
+ * @param {string} [recipientName='Student'] - Recipient username or full name
+ * @param {object} noteRequest - The note request object (title, subject, course, semester, description, _id)
+ * @param {object} requester - The user who requested the note (username, fullName)
+ * @returns {Promise<{success: boolean, id?: string|null, error?: any}>}
+ */
+async function sendNoteRequestBroadcastEmail(toEmail, recipientName, noteRequest, requester) {
+  const name = recipientName && typeof recipientName === "string" ? recipientName.trim() : "Student";
+  const requesterName = requester?.fullName || requester?.username || "A classmate";
+  const siteUrl = getBaseUrl();
+  const year = new Date().getFullYear();
+
+  const requestUrl = `${siteUrl}/requests/${noteRequest._id}`;
+  const uploadUrl = `${siteUrl}/notes/new?subject=${encodeURIComponent(noteRequest.subject || "")}&course=${encodeURIComponent(noteRequest.course || "")}&semester=${encodeURIComponent(noteRequest.semester || "")}&requestId=${noteRequest._id}`;
+
+  const subject = `📚 Note Request: ${noteRequest.subject} (${noteRequest.course} Sem ${noteRequest.semester})`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>New Note Request - SVVV Notes</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f6f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+    .wrapper {
+      max-width: 600px;
+      margin: 30px auto;
+      background-color: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e2e8f0;
+    }
+    .header {
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      padding: 36px 30px;
+      text-align: center;
+      color: #ffffff;
+    }
+    .header-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      margin: 6px 0 0 0;
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    .body-content {
+      padding: 32px 28px;
+    }
+    .greeting {
+      font-size: 16px;
+      margin-bottom: 14px;
+      color: #1e293b;
+    }
+    .request-box {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-left: 5px solid #4f46e5;
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin: 22px 0;
+    }
+    .request-field {
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .request-field:last-child {
+      margin-bottom: 0;
+    }
+    .field-label {
+      font-weight: 700;
+      color: #64748b;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: block;
+      margin-bottom: 3px;
+    }
+    .field-val {
+      color: #0f172a;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .field-desc {
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.5;
+      background: #ffffff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #edf2f7;
+      margin-top: 4px;
+    }
+    .cta-container {
+      text-align: center;
+      margin: 30px 0 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+    }
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+      color: #ffffff !important;
+      text-decoration: none;
+      padding: 14px 34px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+    }
+    .secondary-link {
+      display: inline-block;
+      color: #4f46e5;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    .secondary-link:hover {
+      text-decoration: underline;
+    }
+    .help-banner {
+      background: #eff6ff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 24px;
+      font-size: 13px;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+    .footer {
+      background-color: #f8fafc;
+      padding: 24px 30px;
+      text-align: center;
+      border-top: 1px solid #e2e8f0;
+      font-size: 12px;
+      color: #64748b;
+    }
+    .footer-links {
+      margin-top: 8px;
+    }
+    .footer-links a {
+      color: #4f46e5;
+      text-decoration: none;
+      margin: 0 8px;
+    }
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <div class="header-badge">📢 Community Note Request</div>
+      <h1>A Classmate Needs Notes!</h1>
+      <p>SVVV Notes Peer Sharing</p>
+    </div>
+
+    <div class="body-content">
+      <div class="greeting">Hello <strong>${name}</strong>,</div>
+      <p style="color: #475569; font-size: 14px; margin: 0 0 16px 0;">
+        <strong>${requesterName}</strong> posted a request for study material on SVVV Notes. If you have lecture notes, handwritten summaries, or question papers for this subject, you can help out your fellow classmate by uploading them:
+      </p>
+
+      <div class="request-box">
+        <div class="request-field">
+          <span class="field-label">Subject</span>
+          <div class="field-val">📚 ${noteRequest.subject}</div>
+        </div>
+        <div class="request-field">
+          <span class="field-label">Course & Semester</span>
+          <div class="field-val">🎓 ${noteRequest.course} — Semester ${noteRequest.semester}</div>
+        </div>
+        <div class="request-field">
+          <span class="field-label">Topic / Note Title</span>
+          <div class="field-val" style="color: #4f46e5;">📝 ${noteRequest.title}</div>
+        </div>
+        ${
+          noteRequest.description
+            ? `<div class="request-field">
+                <span class="field-label">Additional Details</span>
+                <div class="field-desc">${noteRequest.description}</div>
+              </div>`
+            : ''
+        }
+      </div>
+
+      <div class="cta-container">
+        <a href="${uploadUrl}" class="cta-button" target="_blank" rel="noopener noreferrer">
+          📤 Upload Notes to Help
+        </a>
+        <a href="${requestUrl}" class="secondary-link" target="_blank" rel="noopener noreferrer">
+          View this request on the board →
+        </a>
+      </div>
+
+      <div class="help-banner">
+        💡 <strong>Did you know?</strong> Every note you share earns upvotes, helps peers prepare for exams, and highlights your contributions on your SVVV Notes public student profile!
+      </div>
+    </div>
+
+    <div class="footer">
+      <p style="margin: 0 0 6px 0;">You received this notification because you are a registered student on SVVV Notes.</p>
+      <div class="footer-links">
+        <a href="${siteUrl}/requests">Request Board</a>
+        <span>•</span>
+        <a href="${siteUrl}/notes">Browse Notes</a>
+        <span>•</span>
+        <a href="${siteUrl}/contact">Support</a>
+      </div>
+      <p style="margin: 12px 0 0 0; color: #94a3b8; font-size: 11px;">
+        © ${year} SVVV Notes. Built for SVVV CSE Students.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const text = `Hello ${name},\n\n${requesterName} is requesting study notes on SVVV Notes:\n\nSubject: ${noteRequest.subject}\nCourse: ${noteRequest.course} (Sem ${noteRequest.semester})\nTopic: ${noteRequest.title}\n${noteRequest.description ? `Details: ${noteRequest.description}\n` : ""}\nIf you have these notes, upload them here:\n${uploadUrl}\n\nView request details: ${requestUrl}\n\nSVVV Notes Community\n${siteUrl}`;
+
+  return await sendEmail({
+    to: toEmail,
+    subject,
+    html,
+    text,
+  });
+}
+
+/**
+ * Broadcasts a note request to all registered users asynchronously in background batches.
+ * Safe non-blocking execution: does not throw errors or hold back HTTP response.
+ *
+ * @param {object} noteRequest - The saved note request document
+ * @param {object} requester - The user creating the request
+ * @returns {Promise<{totalRecipients: number, sentCount: number}>}
+ */
+async function broadcastNoteRequest(noteRequest, requester) {
+  try {
+    const User = require("../models/user");
+    
+    // Automatically find ALL registered users in the database (excluding the requester)
+    const requesterId = requester?._id ? requester._id.toString() : null;
+    const query = {
+      email: { $exists: true, $ne: null, $ne: "" },
+    };
+    if (requesterId) {
+      query._id = { $ne: requester._id };
+    }
+
+    const users = await User.find(query, "email username fullName").lean();
+    if (!users || users.length === 0) {
+      console.log("[Note Request Broadcast] No other registered users found in database to notify.");
+      return { totalRecipients: 0, sentCount: 0 };
+    }
+
+    console.log(
+      `[Note Request Broadcast] Automatically broadcasting note request "${noteRequest.title}" (${noteRequest.subject}) to ALL ${users.length} registered SVVV Notes users...`
+    );
+
+    // Process in batches of 5 to respect mail provider rate limits and ensure fast delivery
+    const BATCH_SIZE = 5;
+    let sentCount = 0;
+
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      const batch = users.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(
+        batch.map(async (user) => {
+          if (!user.email || typeof user.email !== "string" || !user.email.includes("@")) return;
+          const res = await sendNoteRequestBroadcastEmail(
+            user.email.trim(),
+            user.fullName || user.username || "Student",
+            noteRequest,
+            requester
+          );
+          if (res?.success) sentCount++;
+        })
+      );
+    }
+
+    console.log(
+      `[Note Request Broadcast Complete] Successfully delivered note request notifications to ${sentCount}/${users.length} registered students.`
+    );
+    return { totalRecipients: users.length, sentCount };
+  } catch (err) {
+    console.error("[Note Request Broadcast Error] Failed to broadcast note request:", err.message || err);
+    return { totalRecipients: 0, sentCount: 0, error: err.message };
+  }
+}
+
 module.exports = {
   sendEmail,
   sendOTPEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
+  sendNoteRequestBroadcastEmail,
+  broadcastNoteRequest,
   getBaseUrl,
   getSenderAddress,
   getUrBackendClient,

@@ -24,6 +24,7 @@ if (process.env.NODE_ENV !== "production") {
 
 const User = require("./models/user");
 const notesRoutes = require("./routes/notes");
+const requestRoutes = require("./routes/requests");
 const userRoutes = require("./routes/users");
 const adminRoutes = require("./routes/admin");
 
@@ -140,6 +141,7 @@ app.use((req, res, next) => {
 
 app.use("/", userRoutes);
 app.use("/notes", notesRoutes);
+app.use("/requests", requestRoutes);
 app.use("/admin", adminRoutes);
 
 app.get("/", async (req, res, next) => {
@@ -259,6 +261,7 @@ app.get("/sitemap.xml", async (req, res) => {
     const staticPages = [
       { loc: `${baseUrl}/`, changefreq: "daily", priority: "1.0", lastmod: now, imageTitle: "SVVV_Notes Official Home" },
       { loc: `${baseUrl}/notes`, changefreq: "daily", priority: "0.9", lastmod: now, imageTitle: "SVVV_Notes Study Library" },
+      { loc: `${baseUrl}/requests`, changefreq: "daily", priority: "0.8", lastmod: now, imageTitle: "SVVV_Notes Study Requests" },
       { loc: `${baseUrl}/about`, changefreq: "monthly", priority: "0.6", imageTitle: "About SVVV_Notes" },
       { loc: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.6", imageTitle: "Contact SVVV_Notes" },
     ];

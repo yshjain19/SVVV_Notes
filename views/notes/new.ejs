@@ -2,15 +2,26 @@
 <section class="form-shell">
   <div class="container">
     <div class="form-heading">
-      <a href="/notes" class="back-link"
-        ><i class="bi bi-arrow-left"></i> Back to library</a
-      ><span class="section-kicker">CONTRIBUTE TO THE COMMUNITY</span>
+      <a href="/notes" class="back-link">
+        <i class="bi bi-arrow-left"></i> Back to library
+      </a>
+      <span class="section-kicker">CONTRIBUTE TO THE COMMUNITY</span>
       <h1>Share your study notes.</h1>
       <p>
-        Good notes deserve to travel. Upload a PDF to help fellow SVVV CSE
-        students.
+        Good notes deserve to travel. Upload a PDF or image to help fellow SVVV CSE students.
       </p>
     </div>
+
+    <% if (typeof prefill !== 'undefined' && prefill && prefill.requestId) { %>
+      <div class="alert alert-primary d-flex align-items-center gap-3 shadow-sm mb-4" style="max-width: 780px; margin: 0 auto; border-radius: var(--radius);">
+        <i class="bi bi-stars fs-4 text-primary"></i>
+        <div>
+          <strong>Fulfilling a Classmate's Request:</strong>
+          We've pre-filled the subject and course details. Once you publish this note, the community request will be automatically marked as fulfilled!
+        </div>
+      </div>
+    <% } %>
+
     <form
       class="upload-card needs-validation"
       action="/notes"
@@ -18,49 +29,58 @@
       enctype="multipart/form-data"
       novalidate
     >
+      <% if (typeof prefill !== 'undefined' && prefill && prefill.requestId) { %>
+        <input type="hidden" name="requestId" value="<%= prefill.requestId %>" />
+      <% } %>
+
       <div class="row g-4">
         <div class="col-md-8">
-          <label class="form-label">Note title</label
-          ><input
+          <label class="form-label">Note title <span class="text-danger">*</span></label>
+          <input
             class="form-control"
             name="note[title]"
             required
+            value="<%= (typeof prefill !== 'undefined' && prefill && prefill.title) ? prefill.title : '' %>"
             placeholder="e.g. Complete DBMS Unit 3 Notes"
           />
           <div class="invalid-feedback">Please add a clear title.</div>
         </div>
         <div class="col-md-4">
-          <label class="form-label">Subject</label
-          ><input
+          <label class="form-label">Subject <span class="text-danger">*</span></label>
+          <input
             class="form-control"
             name="note[subject]"
             required
+            value="<%= (typeof prefill !== 'undefined' && prefill && prefill.subject) ? prefill.subject : '' %>"
             placeholder="e.g. DBMS"
           />
+          <div class="invalid-feedback">Please enter the subject name.</div>
         </div>
         <div class="col-md-4">
-          <label class="form-label">Course</label
-          ><select class="form-select" name="note[course]" required>
+          <label class="form-label">Course <span class="text-danger">*</span></label>
+          <select class="form-select" name="note[course]" required>
             <option value="">Choose course</option>
             <% const courses = ["B.Tech CSE", "B.Tech IT", "B.Tech ECE", "B.Tech ME", "MBA", "BBA", "MCA", "BCA"]; %>
             <% for(let c of courses){ %>
-            <option value="<%=c%>"><%=c%></option>
+            <option value="<%=c%>" <%= (typeof prefill !== 'undefined' && prefill && prefill.course === c) ? 'selected' : '' %>><%=c%></option>
             <% } %>
           </select>
+          <div class="invalid-feedback">Please select the course.</div>
         </div>
         <div class="col-md-4">
-          <label class="form-label">Semester</label
-          ><select class="form-select" name="note[semester]" required>
+          <label class="form-label">Semester <span class="text-danger">*</span></label>
+          <select class="form-select" name="note[semester]" required>
             <option value="">Choose semester</option>
             <% const semesters = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]; %>
             <% for(let sem of semesters){ %>
-            <option value="<%=sem%>">Semester <%=sem%></option>
+            <option value="<%=sem%>" <%= (typeof prefill !== 'undefined' && prefill && prefill.semester === sem) ? 'selected' : '' %>>Semester <%=sem%></option>
             <% } %>
           </select>
+          <div class="invalid-feedback">Please select the semester.</div>
         </div>
         <div class="col-md-4">
-          <label class="form-label">Upload file</label
-          ><input
+          <label class="form-label">Upload file <span class="text-danger">*</span></label>
+          <input
             class="form-control"
             type="file"
             name="pdf"
@@ -68,29 +88,29 @@
             required
           />
           <div class="form-text">PDF or images (.png, .jpg) · Maximum file size: 10 MB</div>
+          <div class="invalid-feedback">Please choose a file to upload.</div>
         </div>
         <div class="col-12">
-          <label class="form-label">What does this note cover?</label
-          ><textarea
+          <label class="form-label">What does this note cover?</label>
+          <textarea
             class="form-control"
             rows="5"
             name="note[description]"
             required
             placeholder="Give students a useful overview — units covered, topics explained, or exam relevance."
           ></textarea>
+          <div class="invalid-feedback">Please provide a short description.</div>
         </div>
       </div>
       <div class="upload-tip">
-        <i class="bi bi-lightbulb-fill"></i
-        ><span
-          ><strong>A quick reminder:</strong> Share material you created or have
-          permission to distribute. Keep it helpful, clear, and
-          respectful.</span
-        >
+        <i class="bi bi-lightbulb-fill"></i>
+        <span>
+          <strong>A quick reminder:</strong> Share material you created or have permission to distribute. Keep it helpful, clear, and respectful.
+        </span>
       </div>
       <div class="d-flex justify-content-end gap-3 mt-4">
-        <a href="/notes" class="btn btn-light">Cancel</a
-        ><button class="btn btn-primary px-4">
+        <a href="/notes" class="btn btn-light">Cancel</a>
+        <button class="btn btn-primary px-4">
           <i class="bi bi-cloud-arrow-up me-2"></i>Publish note
         </button>
       </div>

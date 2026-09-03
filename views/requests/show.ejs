@@ -1,0 +1,151 @@
+<% layout('layouts/boilerplate') %>
+<section class="py-5" style="background: var(--bg); min-height: calc(100vh - 70px);">
+  <div class="container">
+    <div class="mb-4">
+      <a href="/requests" class="back-link">
+        <i class="bi bi-arrow-left"></i> Back to All Requests
+      </a>
+    </div>
+
+    <div class="row g-4">
+      <!-- Main Request Content -->
+      <div class="col-lg-8">
+        <div class="card border-0 shadow-sm p-4 p-md-5 mb-4" style="background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--border) !important;">
+          <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <span class="tag"><i class="bi bi-journal-bookmark me-1"></i><%= request.subject %></span>
+            <% if(request.status === 'Fulfilled'){ %>
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
+                <i class="bi bi-check-circle-fill me-1"></i>Fulfilled
+              </span>
+            <% } else { %>
+              <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 rounded-pill">
+                <i class="bi bi-hourglass-split me-1"></i>Open Request
+              </span>
+            <% } %>
+          </div>
+
+          <h1 class="h2 fw-bold text-dark mb-3"><%= request.title %></h1>
+
+          <div class="d-flex flex-wrap gap-3 text-secondary small mb-4 pb-3 border-bottom">
+            <div><i class="bi bi-mortarboard me-1 text-primary"></i><strong>Course:</strong> <%= request.course %></div>
+            <div><i class="bi bi-calendar3 me-1 text-primary"></i><strong>Semester:</strong> <%= request.semester %></div>
+            <div><i class="bi bi-clock me-1 text-primary"></i><strong>Posted:</strong> <%= new Date(request.createdAt).toLocaleDateString("en-IN", { month: "long", day: "numeric", year: "numeric" }) %></div>
+          </div>
+
+          <div class="mb-4">
+            <h6 class="text-uppercase text-muted fw-bold small mb-2" style="letter-spacing: 0.5px;">Details & Request Note:</h6>
+            <div class="p-3 rounded-3" style="background: var(--bg); border: 1px solid var(--border); font-size: 0.95rem; line-height: 1.7; color: var(--text-primary); white-space: pre-line;">
+              <%= request.description || "No specific details provided. The student is looking for any helpful handwritten notes, PPTs, unit summaries, or question papers for this subject." %>
+            </div>
+          </div>
+
+          <% if(request.status === 'Fulfilled' && request.fulfilledWith){ %>
+            <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-2 mt-4 p-3 rounded-3">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill fs-4 text-success"></i>
+                <div>
+                  <strong>Fulfilled!</strong> This request has been linked with the note: <em><%= request.fulfilledWith.title %></em>
+                </div>
+              </div>
+              <a href="/notes/<%= request.fulfilledWith._id %>" class="btn btn-sm btn-success">
+                <i class="bi bi-file-earmark-pdf me-1"></i>View Uploaded Note
+              </a>
+            </div>
+          <% } %>
+
+          <!-- Action CTA -->
+          <div class="d-flex flex-wrap gap-3 mt-4 pt-3 border-top justify-content-between align-items-center">
+            <a href="/notes/new?subject=<%= encodeURIComponent(request.subject) %>&course=<%= encodeURIComponent(request.course) %>&semester=<%= encodeURIComponent(request.semester) %>&requestId=<%= request._id %>" class="btn btn-primary px-4 shadow-sm">
+              <i class="bi bi-cloud-arrow-up me-2"></i>Upload Notes for this Request
+            </a>
+
+            <% if(currentUser && (request.requestedBy?._id?.equals(currentUser._id) || currentUser.isAdmin)){ %>
+              <div class="d-flex gap-2">
+                <form action="/requests/<%= request._id %>/fulfill" method="POST" class="d-inline">
+                  <button class="btn btn-outline-secondary btn-sm" type="submit">
+                    <i class="bi bi-arrow-repeat me-1"></i>Mark as <%= request.status === 'Fulfilled' ? 'Open' : 'Fulfilled' %>
+                  </button>
+                </form>
+
+                <form action="/requests/<%= request._id %>?_method=DELETE" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this request?');">
+                  <button class="btn btn-outline-danger btn-sm" type="submit">
+                    <i class="bi bi-trash3 me-1"></i>Delete
+                  </button>
+                </form>
+              </div>
+            <% } %>
+          </div>
+        </div>
+
+        <!-- Related Notes in Library (if any) -->
+        <% if(relatedNotes && relatedNotes.length > 0){ %>
+          <div class="card border-0 shadow-sm p-4" style="background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--border) !important;">
+            <h5 class="fw-bold text-dark mb-3">
+              <i class="bi bi-stars text-primary me-2"></i>Notes Already Available in Library
+            </h5>
+            <p class="text-secondary small mb-3">
+              We found matching study notes for <strong><%= request.subject %></strong> / <strong><%= request.course %> (Sem <%= request.semester %>)</strong> that might help right away:
+            </p>
+            <div class="list-group list-group-flush">
+              <% relatedNotes.forEach(note => { %>
+                <a href="/notes/<%= note._id %>" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 py-3 border-bottom">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="pdf-icon" style="width: 36px; height: 36px; font-size: 1.1rem;">
+                      <i class="bi bi-file-earmark-pdf"></i>
+                    </div>
+                    <div>
+                      <h6 class="mb-0 text-dark fw-bold"><%= note.title %></h6>
+                      <small class="text-muted"><%= note.subject?.name || request.subject %> · by <%= note.uploadedBy?.fullName || note.uploadedBy?.username || 'Student' %></small>
+                    </div>
+                  </div>
+                  <span class="btn btn-sm btn-light">View Note →</span>
+                </a>
+              <% }) %>
+            </div>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Requester & Community Sidebar -->
+      <div class="col-lg-4">
+        <!-- Requester Profile Card -->
+        <div class="card border-0 shadow-sm p-4 mb-4" style="background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--border) !important;">
+          <h6 class="text-uppercase text-muted fw-bold small mb-3" style="letter-spacing: 0.5px;">Requested By</h6>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <span class="avatar-sm" style="width: 48px; height: 48px; font-size: 1.2rem;">
+              <%= (request.requestedBy?.fullName || request.requestedBy?.username || 'S').charAt(0).toUpperCase() %>
+            </span>
+            <div>
+              <h6 class="mb-0 fw-bold text-dark">
+                <% if(request.requestedBy?._id){ %>
+                  <a href="/users/<%= request.requestedBy._id %>" class="text-dark text-decoration-none">
+                    <%= request.requestedBy?.fullName || request.requestedBy?.username || 'SVVV Student' %>
+                  </a>
+                <% } else { %>
+                  SVVV Student
+                <% } %>
+              </h6>
+              <small class="text-secondary">@<%= request.requestedBy?.username || 'student' %></small>
+            </div>
+          </div>
+          <div class="small text-secondary">
+            <i class="bi bi-person-badge me-1"></i>SVVV Student Community Member
+          </div>
+        </div>
+
+        <!-- Community Email Broadcast Info Card -->
+        <div class="card border-0 shadow-sm p-4" style="background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%); border-radius: var(--radius); border: 1px solid var(--border) !important;">
+          <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-bold small">
+            <i class="bi bi-broadcast"></i> Community Broadcast Active
+          </div>
+          <p class="text-secondary small mb-3" style="line-height: 1.6;">
+            When this request was created, an automated notification was emailed to all registered peers. Have these notes? Share them now and help your classmates excel!
+          </p>
+          <a href="/notes/new?subject=<%= encodeURIComponent(request.subject) %>&course=<%= encodeURIComponent(request.course) %>&semester=<%= encodeURIComponent(request.semester) %>&requestId=<%= request._id %>" class="btn btn-soft w-100">
+            <i class="bi bi-cloud-arrow-up me-1"></i>Upload & Share Notes
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

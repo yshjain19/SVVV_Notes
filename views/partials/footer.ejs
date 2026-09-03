@@ -1,7 +1,7 @@
 <footer class="footer mt-5">
   <div class="container py-5">
     <div class="row g-4">
-      <div class="col-lg-5">
+      <div class="col-lg-4">
         <a
           class="navbar-brand d-flex align-items-center gap-2 text-white"
           href="/"
@@ -9,31 +9,67 @@
             ><img src="/images/logo-icon.svg" alt="SVVV_Notes logo" width="19" height="19" style="display:block;" /></span
           >SVVV_Notes</a
         >
-        <p class="footer-copy mt-3 mb-0">
+        <p class="footer-copy mt-3 mb-3">
           A student-built space for SVVV CSE students to make learning more
           open, organized, and collaborative.
         </p>
+        <!-- Social & Repo Links -->
+        <div class="d-flex gap-2 align-items-center">
+          <a
+            href="https://github.com/yshjain19/SVVV_Notes"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-2 py-1 px-3 rounded-pill"
+            style="font-size: 0.8rem; border-color: rgba(255,255,255,0.25);"
+          >
+            <i class="bi bi-github"></i> GitHub Repo
+          </a>
+          <a
+            href="https://www.linkedin.com/in/yash-jain-6b6647320/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-2 py-1 px-3 rounded-pill"
+            style="font-size: 0.8rem; border-color: rgba(255,255,255,0.25);"
+          >
+            <i class="bi bi-linkedin text-info"></i> LinkedIn
+          </a>
+        </div>
       </div>
       <div class="col-6 col-lg-2">
         <h3>Explore</h3>
-        <a href="/notes">All notes</a><a href="/notes/new">Upload notes</a
-        ><a href="/about">About us</a>
+        <a href="/notes">All notes</a>
+        <a href="/requests">Note requests</a>
+        <a href="/notes/new">Upload notes</a>
+        <a href="/about">About us</a>
       </div>
-      <div class="col-6 col-lg-2">
-        <h3>Account</h3>
-        <a href="/login">Log in</a><a href="/register">Register</a
-        ><a href="/contact">Contact</a>
+      <div class="col-6 col-lg-3">
+        <h3>Community & Support</h3>
+        <a href="/contact"><i class="bi bi-chat-heart me-1 text-warning"></i> Give Feedback</a>
+        <a href="https://github.com/yshjain19/SVVV_Notes/issues" target="_blank" rel="noopener noreferrer">
+          <i class="bi bi-bug me-1"></i> Report an Issue
+        </a>
+        <a href="/contact">Contact Developer</a>
+        <a href="/requests/new">Request Study Material</a>
       </div>
       <div class="col-lg-3">
-        <h3>Made for learners</h3>
-        <p class="footer-copy">
-          Independent student project. Not an official university website.
+        <h3>Feedback & Connect</h3>
+        <p class="footer-copy mb-3">
+          Have an idea or spotted a bug? We’d love to hear your thoughts and suggestions.
         </p>
+        <a href="/contact" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2">
+          <i class="bi bi-chat-dots-fill"></i> Share Feedback
+        </a>
       </div>
     </div>
     <div class="footer-bottom mt-5 pt-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
       <span>© <%= new Date().getFullYear() %> SVVV_Notes · Built with care for the SVVV student community.</span>
-      <span>Designed & Developed by <strong class="text-white">Yash Jain</strong> 💙</span>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span>Designed & Developed by <a href="https://www.linkedin.com/in/yash-jain-6b6647320/" target="_blank" rel="noopener noreferrer" class="text-white text-decoration-underline fw-bold d-inline">Yash Jain</a></span>
+        <span class="text-secondary">•</span>
+        <a href="https://github.com/yshjain19/SVVV_Notes" target="_blank" rel="noopener noreferrer" class="text-secondary d-inline hover-white">
+          <i class="bi bi-github me-1"></i>Open Source
+        </a>
+      </div>
     </div>
   </div>
 </footer>
