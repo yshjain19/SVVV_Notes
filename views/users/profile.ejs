@@ -31,7 +31,12 @@
           <% if (user.email) { %>
             <p class="text-secondary mb-0 d-flex align-items-center gap-2" style="font-size: 0.85rem;"><i class="bi bi-envelope text-primary"></i><%= user.email %></p>
           <% } %>
-          <p class="text-secondary mb-0 d-flex align-items-center gap-2" style="font-size: 0.85rem;"><i class="bi bi-journal-bookmark text-primary"></i><%= notes.length %> <%= notes.length === 1 ? 'note shared' : 'notes shared' %></p>
+          <% const totalUserDownloads = notes.reduce((sum, n) => sum + (n.downloadCount || 0), 0); %>
+          <p class="text-secondary mb-0 d-flex align-items-center gap-2" style="font-size: 0.85rem;">
+            <i class="bi bi-journal-bookmark text-primary"></i><%= notes.length %> <%= notes.length === 1 ? 'note shared' : 'notes shared' %>
+            <span class="text-muted">•</span>
+            <i class="bi bi-download text-primary"></i><%= totalUserDownloads %> <%= totalUserDownloads === 1 ? 'total download' : 'total downloads' %>
+          </p>
         </div>
         <% if (currentUser && currentUser._id.equals(user._id)) { %>
           <div class="mt-2 d-flex gap-2">

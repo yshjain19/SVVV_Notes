@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const User = require("../models/user");
 const Note = require("../models/note");
+const DownloadLog = require("../models/downloadLog");
 const { removeStoredFile } = require("./notes");
 
 exports.dashboard = async (req, res, next) => {
@@ -21,11 +22,10 @@ exports.dashboard = async (req, res, next) => {
     const usersDelta = await User.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
     const notesDelta = await Note.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
     
-    const downloadsDeltaAgg = await Note.aggregate([
-      { $match: { updatedAt: { $gte: sevenDaysAgo } } },
-      { $group: { _id: null, total: { $sum: "$downloadCount" } } }
-    ]);
-    const downloadsDelta = downloadsDeltaAgg[0]?.total || 0;
+    // Accurate 7-day downloads from individual download event logs
+    const downloadsDelta = await DownloadLog.countDocuments({
+      createdAt: { $gte: sevenDaysAgo },
+    });
 
     // Traffic metrics (sessions from db, unique downloads, unique IPs)
     let uniqueSessions = 0;

@@ -40,7 +40,12 @@
     </div>
   </div>
   <div class="note-card-footer">
-    <span><i class="bi bi-layers me-1"></i>Semester <%= note.semester %></span>
+    <div class="d-flex align-items-center gap-3">
+      <span><i class="bi bi-layers me-1"></i>Sem <%= note.semester %></span>
+      <span class="text-secondary small d-inline-flex align-items-center gap-1" title="<%= note.downloadCount || 0 %> downloads">
+        <i class="bi bi-download text-primary"></i><%= note.downloadCount || 0 %>
+      </span>
+    </div>
     <a
       class="btn btn-sm btn-outline-primary rounded-pill px-3"
       href="/notes/<%= note._id %>"

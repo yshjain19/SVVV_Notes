@@ -78,12 +78,16 @@
                 Date(note.createdAt).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})%></strong
               >
             </div>
+            <div>
+              <i class="bi bi-download"></i><span>Downloads</span>
+              <strong><%=note.downloadCount || 0%></strong>
+            </div>
           </div>
           <a
             href="/notes/<%=note._id%>/download"
             download
             class="btn btn-primary w-100 py-2"
-            ><i class="bi bi-download me-2"></i>Download PDF</a
+            ><i class="bi bi-download me-2"></i>Download PDF (<%=note.downloadCount || 0%>)</a
           ><%if(currentUser && note.uploadedBy && note.uploadedBy._id.equals(currentUser._id)){%>
           <div class="owner-actions">
             <a class="btn btn-light" href="/notes/<%=note._id%>/edit"

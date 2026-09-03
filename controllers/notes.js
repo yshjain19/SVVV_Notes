@@ -2,6 +2,7 @@ const path = require("path");
 const mongoose = require("mongoose");
 const Note = require("../models/note");
 const Subject = require("../models/subject");
+const DownloadLog = require("../models/downloadLog");
 const { cloudinary } = require("../config/cloudinary");
 
 function parseCloudinaryUrl(url) {
@@ -290,6 +291,19 @@ exports.download = async (req, res, next) => {
     }
     note.downloadCount = (note.downloadCount || 0) + 1;
     await note.save();
+
+    // Log the download event for accurate time-based analytics (7-day delta, etc.)
+    try {
+      await DownloadLog.create({
+        note: note._id,
+        user: req.user ? req.user._id : null,
+        ip: req.ip || req.headers["x-forwarded-for"] || null,
+        downloadedAt: new Date(),
+      });
+    } catch (logErr) {
+      console.error("Failed to record download log:", logErr.message);
+    }
+
     res.redirect(note.fileUrl);
   } catch (error) {
     next(error);
