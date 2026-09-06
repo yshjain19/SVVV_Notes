@@ -1,0 +1,272 @@
+<% layout('layouts/boilerplate') %>
+<style>
+  .mod-header { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); }
+  .stat-pill { border-radius: 999px; padding: 6px 18px; font-size: 0.82rem; font-weight: 700; cursor: pointer; transition: all 0.18s; border: 2px solid transparent; }
+  .stat-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+  .stat-pill.active { border-color: currentColor; }
+  .note-row { transition: background 0.15s; }
+  .note-row:hover { background: #F9FAFB; }
+  .status-badge { border-radius: 999px; padding: 3px 11px; font-size: 0.72rem; font-weight: 700; }
+  .action-btn { border-radius: 8px; font-size: 0.78rem; font-weight: 600; padding: 5px 14px; }
+  .reject-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1050; align-items: center; justify-content: center; }
+  .reject-modal-overlay.show { display: flex; }
+  .reject-modal { background: #fff; border-radius: 16px; padding: 32px; max-width: 480px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.18); }
+  .audit-row td { font-size: 0.82rem; vertical-align: middle; }
+</style>
+
+<section style="background: #F3F4F6; min-height: 100vh;">
+  <!-- Header -->
+  <div class="mod-header text-white py-4 mb-5">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+          <a href="/admin/dashboard" class="text-white text-decoration-none" style="font-size:0.82rem; opacity:0.7;">← Back to Dashboard</a>
+          <h1 class="mb-0 mt-1 fw-bold" style="font-size:1.9rem;">Note Moderation Queue</h1>
+          <p class="mb-0 mt-1" style="opacity:0.75; font-size:0.9rem;">Review, approve, or reject submitted notes before they go public.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="/admin/notes?status=pending" class="stat-pill text-warning bg-warning bg-opacity-10 text-decoration-none <%= statusFilter === 'pending' ? 'active' : '' %>">
+            ⏳ Pending <span class="badge bg-warning text-dark ms-1"><%= pendingCount %></span>
+          </a>
+          <a href="/admin/notes?status=approved" class="stat-pill text-success bg-success bg-opacity-10 text-decoration-none <%= statusFilter === 'approved' ? 'active' : '' %>">
+            ✅ Approved <span class="badge bg-success ms-1"><%= approvedCount %></span>
+          </a>
+          <a href="/admin/notes?status=rejected" class="stat-pill text-danger bg-danger bg-opacity-10 text-decoration-none <%= statusFilter === 'rejected' ? 'active' : '' %>">
+            ❌ Rejected <span class="badge bg-danger ms-1"><%= rejectedCount %></span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container pb-5">
+
+    <!-- Notes table -->
+    <div class="card border-0 shadow-sm mb-5" style="border-radius:14px;">
+      <div class="card-body p-0">
+        <% if (notes.length === 0) { %>
+          <div class="text-center py-5 text-muted">
+            <div style="font-size: 3.5rem; opacity:0.25;">📋</div>
+            <h4 class="mt-3 fw-bold text-secondary">No <%= statusFilter %> notes</h4>
+            <p style="font-size:0.9rem;">All <%= statusFilter %> notes have been processed.</p>
+          </div>
+        <% } else { %>
+          <div class="table-responsive">
+            <table class="table align-middle mb-0" style="font-size:0.88rem;">
+              <thead style="background:#F9FAFB; border-bottom: 2px solid #E5E7EB;">
+                <tr style="font-size:0.75rem; color:#6B7280; text-transform:uppercase; font-weight:700;">
+                  <th class="px-4 py-3">Note</th>
+                  <th class="py-3">Subject</th>
+                  <th class="py-3">Uploaded By</th>
+                  <th class="py-3">Date</th>
+                  <th class="py-3">Course / Sem</th>
+                  <th class="py-3">Status</th>
+                  <th class="py-3 text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% notes.forEach(note => { %>
+                  <tr class="note-row border-bottom">
+                    <td class="px-4 py-3">
+                      <div class="fw-bold text-dark" style="max-width:200px;">
+                        <%= note.title %>
+                      </div>
+                      <% if (note.description) { %>
+                        <div class="text-muted mt-1" style="font-size:0.75rem; max-width:220px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                          <%= note.description %>
+                        </div>
+                      <% } %>
+                      <a href="<%= note.fileUrl %>" target="_blank" rel="noopener noreferrer"
+                         class="d-inline-flex align-items-center gap-1 mt-1 text-decoration-none text-primary"
+                         style="font-size:0.75rem;">
+                        <i class="bi bi-file-earmark-pdf-fill text-danger"></i> Preview File
+                      </a>
+                    </td>
+                    <td class="py-3">
+                      <span class="badge bg-light text-dark border" style="font-weight:600;">
+                        <%= note.subject ? note.subject.name : 'Unknown' %>
+                      </span>
+                    </td>
+                    <td class="py-3">
+                      <% if (note.uploadedBy) { %>
+                        <div class="d-flex align-items-center gap-2">
+                          <div style="width:28px; height:28px; border-radius:50%; background:#E0E7FF; color:#4F46E5; display:grid; place-items:center; font-weight:700; font-size:0.78rem; flex-shrink:0;">
+                            <%= (note.uploadedBy.username || 'U').charAt(0).toUpperCase() %>
+                          </div>
+                          <div>
+                            <div class="fw-semibold text-dark" style="font-size:0.82rem; line-height:1.2;">
+                              <%= note.uploadedBy.fullName || note.uploadedBy.username %>
+                            </div>
+                            <div class="text-muted" style="font-size:0.73rem;">@<%= note.uploadedBy.username %></div>
+                          </div>
+                        </div>
+                      <% } else { %>
+                        <span class="text-muted">Unknown</span>
+                      <% } %>
+                    </td>
+                    <td class="py-3" style="white-space:nowrap;">
+                      <%= new Date(note.createdAt).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) %>
+                    </td>
+                    <td class="py-3">
+                      <div style="font-size:0.78rem;"><%= note.course || '—' %></div>
+                      <div class="text-muted" style="font-size:0.73rem;">Sem <%= note.semester || '—' %></div>
+                    </td>
+                    <td class="py-3">
+                      <% if (note.status === 'pending') { %>
+                        <span class="status-badge bg-warning bg-opacity-15 text-warning-emphasis">⏳ Pending</span>
+                      <% } else if (note.status === 'approved') { %>
+                        <span class="status-badge bg-success bg-opacity-15 text-success">✅ Approved</span>
+                      <% } else { %>
+                        <span class="status-badge bg-danger bg-opacity-15 text-danger">❌ Rejected</span>
+                        <% if (note.rejectionReason) { %>
+                          <div class="text-muted mt-1" style="font-size:0.7rem; max-width:120px;" title="<%= note.rejectionReason %>">
+                            "<%= note.rejectionReason.slice(0, 40) %><%= note.rejectionReason.length > 40 ? '…' : '' %>"
+                          </div>
+                        <% } %>
+                      <% } %>
+                    </td>
+                    <td class="py-3 text-end pe-4">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <% if (note.status !== 'approved') { %>
+                          <form action="/admin/notes/<%= note._id %>/approve" method="POST">
+                            <button type="submit" class="action-btn btn btn-success btn-sm">
+                              <i class="bi bi-check-lg me-1"></i>Approve
+                            </button>
+                          </form>
+                        <% } %>
+                        <% if (note.status !== 'rejected') { %>
+                          <button type="button"
+                                  class="action-btn btn btn-outline-danger btn-sm open-reject-modal"
+                                  data-note-id="<%= note._id %>"
+                                  data-note-title="<%= note.title %>">
+                            <i class="bi bi-x-lg me-1"></i>Reject
+                          </button>
+                        <% } %>
+                        <form action="/admin/notes/<%= note._id %>/delete" method="POST"
+                              data-confirm="Permanently delete '<%= note.title %>'? This cannot be undone.">
+                          <button type="submit" class="action-btn btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-trash"></i>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Recent Audit Log -->
+    <% if (recentLogs.length > 0) { %>
+      <div class="card border-0 shadow-sm" style="border-radius:14px;">
+        <div class="card-body">
+          <h3 class="fw-bold mb-3" style="font-size:1.05rem; color:#1F2937;">Recent Moderation Activity</h3>
+          <div class="table-responsive">
+            <table class="table mb-0">
+              <thead class="table-light">
+                <tr style="font-size:0.72rem; text-transform:uppercase; color:#9CA3AF; font-weight:700;">
+                  <th>Action</th>
+                  <th>Note</th>
+                  <th>Admin</th>
+                  <th>Timestamp</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% recentLogs.forEach(log => { %>
+                  <tr class="audit-row border-bottom">
+                    <td>
+                      <% if (log.action === 'ADMIN_APPROVED_NOTE') { %>
+                        <span class="badge bg-success">✅ Approved</span>
+                      <% } else if (log.action === 'ADMIN_REJECTED_NOTE') { %>
+                        <span class="badge bg-danger">❌ Rejected</span>
+                      <% } else { %>
+                        <span class="badge bg-secondary">🗑 Deleted</span>
+                      <% } %>
+                    </td>
+                    <td class="fw-semibold text-dark" style="max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                      <%= log.noteTitle || '—' %>
+                    </td>
+                    <td class="text-muted">
+                      <%= log.adminId ? (log.adminId.fullName || log.adminId.username) : '—' %>
+                    </td>
+                    <td class="text-muted" style="white-space:nowrap;">
+                      <%= new Date(log.createdAt).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) %>
+                    </td>
+                    <td class="text-muted" style="max-width:180px;">
+                      <%= log.rejectionReason || '—' %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<!-- Reject Modal -->
+<div class="reject-modal-overlay" id="rejectModalOverlay" role="dialog" aria-modal="true" aria-labelledby="rejectModalTitle">
+  <div class="reject-modal">
+    <h3 id="rejectModalTitle" class="fw-bold mb-2" style="font-size:1.15rem; color:#111827;">Reject Note</h3>
+    <p class="text-muted mb-4" style="font-size:0.88rem;">
+      Rejecting: <strong id="rejectNoteTitle" class="text-dark"></strong>
+    </p>
+    <form id="rejectForm" method="POST">
+      <label for="rejectionReason" class="form-label fw-semibold" style="font-size:0.88rem;">
+        Rejection Reason <span class="text-danger">*</span>
+      </label>
+      <textarea id="rejectionReason" name="rejectionReason" class="form-control mb-4"
+                rows="3" maxlength="500" required
+                placeholder="e.g. Content is unclear, file is unreadable, not related to SVVV curriculum…"
+                style="border-radius:10px; font-size:0.88rem; resize:none;"></textarea>
+      <div class="d-flex gap-3 justify-content-end">
+        <button type="button" id="cancelRejectBtn" class="btn btn-light px-4" style="border-radius:10px;">Cancel</button>
+        <button type="submit" class="btn btn-danger px-4" style="border-radius:10px;">Confirm Reject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Reject modal logic
+  const overlay = document.getElementById('rejectModalOverlay');
+  const rejectForm = document.getElementById('rejectForm');
+  const rejectNoteTitle = document.getElementById('rejectNoteTitle');
+
+  document.querySelectorAll('.open-reject-modal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const noteId = btn.dataset.noteId;
+      const noteTitle = btn.dataset.noteTitle;
+      rejectForm.action = `/admin/notes/${noteId}/reject`;
+      rejectNoteTitle.textContent = noteTitle;
+      document.getElementById('rejectionReason').value = '';
+      overlay.classList.add('show');
+      document.getElementById('rejectionReason').focus();
+    });
+  });
+
+  document.getElementById('cancelRejectBtn').addEventListener('click', () => {
+    overlay.classList.remove('show');
+  });
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('show');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') overlay.classList.remove('show');
+  });
+
+  // Delete confirmation
+  document.querySelectorAll('[data-confirm]').forEach(form => {
+    form.addEventListener('submit', (e) => {
+      if (!window.confirm(form.dataset.confirm)) e.preventDefault();
+    });
+  });
+</script>

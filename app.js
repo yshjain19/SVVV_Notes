@@ -32,17 +32,7 @@ const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: "Too many authentication requests from this IP, please try again after 15 minutes.",
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-app.use("/login", authLimiter);
-app.use("/register", authLimiter);
-
+// Per-route rate limiting is applied in routes/users.js (loginLimiter, registerLimiter).
 // Required for secure cookies when a host terminates HTTPS before Express.
 if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
 
@@ -149,14 +139,16 @@ app.get("/", async (req, res, next) => {
     const Note = require("./models/note");
     const Subject = require("./models/subject");
 
-    const latestNotes = await Note.find({})
+    // Public home page: only show approved notes
+    const latestNotes = await Note.find({ status: "approved" })
       .populate("uploadedBy")
       .populate("subject")
       .sort({ createdAt: -1 })
       .limit(3);
 
-    // Fetch top 12 active subjects that actually have notes uploaded
+    // Fetch top 12 active subjects that actually have approved notes
     const activeSubjectsData = await Note.aggregate([
+      { $match: { status: "approved" } },
       { $group: { _id: "$subject", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
       { $limit: 12 }
@@ -244,9 +236,9 @@ app.get("/sitemap.xml", async (req, res) => {
     const Note = require("./models/note");
     const User = require("./models/user");
 
-    // Fetch notes and active note uploaders
-    const notesPromise = Note.find({}, "_id title updatedAt createdAt").sort({ updatedAt: -1 }).lean().catch(() => []);
-    const activeUserIdsPromise = Note.distinct("uploadedBy").catch(() => []);
+    // Fetch only approved notes and active note uploaders for sitemap
+    const notesPromise = Note.find({ status: "approved" }, "_id title updatedAt createdAt").sort({ updatedAt: -1 }).lean().catch(() => []);
+    const activeUserIdsPromise = Note.distinct("uploadedBy", { status: "approved" }).catch(() => []);
 
     const [notes, activeUserIds] = await Promise.all([notesPromise, activeUserIdsPromise]);
 
@@ -386,6 +378,23 @@ async function main() {
     family: 4,
     tls: isAtlasConnection,
   });
+
+  // ── One-time migration: mark all pre-existing notes as approved ───────────
+  // Existing notes that were visible before the moderation system was added
+  // are trusted and should remain publicly visible.
+  // New notes uploaded after this deployment will default to "pending".
+  try {
+    const Note = require("./models/note");
+    const migrationResult = await Note.updateMany(
+      { status: { $exists: false } },
+      { $set: { status: "approved", isVerified: true } }
+    );
+    if (migrationResult.modifiedCount > 0) {
+      console.log(`[Migration] Migrated ${migrationResult.modifiedCount} existing notes to status='approved'.`);
+    }
+  } catch (migrationErr) {
+    console.error("[Migration] Failed to migrate note statuses:", migrationErr.message);
+  }
 
   app.listen(port, () =>
     console.log(`SVVV_Notes running at http://localhost:${port}`),

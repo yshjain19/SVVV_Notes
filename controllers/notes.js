@@ -47,19 +47,25 @@ exports.removeStoredFile = async function removeStoredFile(fileUrl) {
   }
 };
 
+// ── PUBLIC FILTER ──────────────────────────────────────────────────────────────
+// All public queries MUST include { status: "approved" }.
+// This is enforced at the database level — never rely on frontend-only filtering.
+const PUBLIC_FILTER = { status: "approved" };
+
 exports.index = async (req, res) => {
   const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
   const rawSemester = typeof req.query.semester === "string" ? req.query.semester.trim() : "";
-  
-  const filter = {};
-  
+
+  // Always start with the public visibility filter
+  const filter = { ...PUBLIC_FILTER };
+
   if (rawSemester) filter.semester = rawSemester;
 
   if (rawQ) {
     const Subject = require("../models/subject");
     // Escape all regex special characters to prevent ReDoS and regex injection
     const escapedQ = rawQ.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    
+
     // Find subjects matching the escaped query case-insensitively
     const matchingSubjects = await Subject.find({
       name: { $regex: escapedQ, $options: "i" }
@@ -128,8 +134,8 @@ exports.create = async (req, res, next) => {
   const course = noteData.course;
   const semester = noteData.semester;
 
-  const isVerified = Boolean(req.user && req.user.isAdmin);
-
+  // ALL newly uploaded notes start as "pending" regardless of who uploaded them.
+  // An admin must explicitly approve before it becomes publicly visible.
   const note = new Note({
     title,
     description,
@@ -138,7 +144,8 @@ exports.create = async (req, res, next) => {
     subject: subjectDoc._id,
     fileUrl: uploadedFile.url,
     uploadedBy: req.user._id,
-    isVerified,
+    status: "pending",
+    isVerified: false,
   });
 
   try {
@@ -158,7 +165,10 @@ exports.create = async (req, res, next) => {
       }
     }
 
-    req.flash("success", "Your note is live and ready to help classmates.");
+    req.flash(
+      "success",
+      "Note submitted successfully! It is currently under admin review and will become publicly visible after approval."
+    );
     res.redirect(`/notes/${note._id}`);
   } catch (error) {
     // Clean up uploaded Cloudinary file if database save fails
@@ -191,6 +201,17 @@ exports.show = async (req, res) => {
     return res.redirect("/notes");
   }
 
+  // Determine if the viewer is the uploader or an admin
+  const isOwner = req.isAuthenticated() && req.user && note.uploadedBy &&
+    note.uploadedBy._id.equals(req.user._id);
+  const isAdmin = req.isAuthenticated() && req.user && req.user.isAdmin;
+
+  // Non-approved notes are only viewable by the uploader or an admin
+  if (note.status !== "approved" && !isOwner && !isAdmin) {
+    req.flash("error", "That note could not be found.");
+    return res.redirect("/notes");
+  }
+
   const subjectName = note.subject && note.subject.name ? note.subject.name : (note.subject || "Engineering");
   const metaDescription = note.description
     ? `${note.description.substring(0, 155).trim()}...`
@@ -202,6 +223,8 @@ exports.show = async (req, res) => {
     pdfUrl: note.fileUrl,
     metaDescription,
     pageType: "article",
+    isOwner,
+    isAdmin,
   });
 };
 
@@ -226,7 +249,7 @@ exports.renderEditForm = async (req, res) => {
 exports.update = async (req, res, next) => {
   const note = res.locals.note;
   const noteData = req.body.note || {};
-  
+
   const rawSubject = typeof noteData.subject === "string" ? noteData.subject.trim() : "General";
   let subjectDoc = await Subject.findOne({ name: rawSubject }).collation({ locale: "en", strength: 2 });
   if (!subjectDoc) {
@@ -245,6 +268,13 @@ exports.update = async (req, res, next) => {
   note.semester = semester;
   note.subject = subjectDoc._id;
 
+  // When a note is edited, reset it to pending so admin can re-review the updated content
+  note.status = "pending";
+  note.isVerified = false;
+  note.verifiedBy = null;
+  note.verifiedAt = null;
+  note.rejectionReason = null;
+
   let uploadedFile = null;
   if (req.file) {
     uploadedFile = await buildFileFromFile(req.file);
@@ -252,10 +282,10 @@ exports.update = async (req, res, next) => {
     note.fileUrl = uploadedFile.url;
     await exports.removeStoredFile(oldUrl);
   }
-  
+
   try {
     await note.save();
-    req.flash("success", "Note updated successfully.");
+    req.flash("success", "Note updated. It has been re-submitted for admin review and will be visible after approval.");
     res.redirect(`/notes/${note._id}`);
   } catch (error) {
     if (error.code === 11000 || (error.name === "MongoServerError" && error.message.includes("E11000"))) {
@@ -289,6 +319,18 @@ exports.download = async (req, res, next) => {
       req.flash("error", "Note not found.");
       return res.redirect("/notes");
     }
+
+    // Only approved notes can be downloaded publicly.
+    // The uploader and admins can still download their own pending/rejected notes.
+    const isOwner = req.isAuthenticated() && req.user && note.uploadedBy &&
+      note.uploadedBy.equals(req.user._id);
+    const isAdmin = req.isAuthenticated() && req.user && req.user.isAdmin;
+
+    if (note.status !== "approved" && !isOwner && !isAdmin) {
+      req.flash("error", "This note is not available for download.");
+      return res.redirect("/notes");
+    }
+
     note.downloadCount = (note.downloadCount || 0) + 1;
     await note.save();
 
@@ -309,4 +351,3 @@ exports.download = async (req, res, next) => {
     next(error);
   }
 };
-

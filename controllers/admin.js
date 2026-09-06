@@ -2,26 +2,47 @@ const mongoose = require("mongoose");
 const User = require("../models/user");
 const Note = require("../models/note");
 const DownloadLog = require("../models/downloadLog");
+const AuditLog = require("../models/auditLog");
 const { removeStoredFile } = require("./notes");
 
+// ── Helper: write an audit log entry ──────────────────────────────────────────
+async function writeAuditLog(adminId, action, { noteId, userId, rejectionReason, noteTitle, targetUsername } = {}) {
+  try {
+    await AuditLog.create({
+      adminId,
+      noteId: noteId || null,
+      userId: userId || null,
+      action,
+      rejectionReason: rejectionReason || null,
+      noteTitle: noteTitle || null,
+      targetUsername: targetUsername || null,
+    });
+  } catch (err) {
+    console.error("Failed to write audit log:", err.message);
+  }
+}
+
+// ── GET /admin/dashboard ──────────────────────────────────────────────────────
 exports.dashboard = async (req, res, next) => {
   try {
     const totalUsers = await User.countDocuments();
     const totalNotes = await Note.countDocuments();
-    
+
     const totalDownloadsAgg = await Note.aggregate([
       { $group: { _id: null, total: { $sum: "$downloadCount" } } }
     ]);
     const totalDownloads = totalDownloadsAgg[0]?.total || 0;
 
-    // Awaiting review / unverified notes count
-    const pendingNotes = await Note.countDocuments({ isVerified: false });
+    // Moderation counts
+    const pendingNotes = await Note.countDocuments({ status: "pending" });
+    const approvedNotes = await Note.countDocuments({ status: "approved" });
+    const rejectedNotes = await Note.countDocuments({ status: "rejected" });
 
     // Calculate 7-day deltas
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const usersDelta = await User.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
     const notesDelta = await Note.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
-    
+
     // Accurate 7-day downloads from individual download event logs
     const downloadsDelta = await DownloadLog.countDocuments({
       createdAt: { $gte: sevenDaysAgo },
@@ -44,15 +65,15 @@ exports.dashboard = async (req, res, next) => {
     const uniqueDownloads = totalDownloads ? Math.round(totalDownloads * 0.85) : 0;
     const uniqueIps = uniqueSessions ? Math.round(uniqueSessions * 0.95) : 0;
 
-    // Top 5 Most Downloaded Notes
-    const topNotes = await Note.find({})
+    // Top 5 Most Downloaded Notes (approved only for display)
+    const topNotes = await Note.find({ status: "approved" })
       .populate("subject")
       .sort({ downloadCount: -1 })
       .limit(5);
 
-    // User/Note Verification Chart Data
-    const verifiedCount = await Note.countDocuments({ isVerified: true });
-    const unverifiedCount = await Note.countDocuments({ isVerified: false });
+    // Note status chart data
+    const verifiedCount = approvedNotes;
+    const unverifiedCount = pendingNotes + rejectedNotes;
 
     const allUsers = await User.find({}).sort({ createdAt: -1 });
     const users = await Promise.all(
@@ -72,6 +93,7 @@ exports.dashboard = async (req, res, next) => {
       if (mongoose.Types.ObjectId.isValid(req.query.user)) {
         selectedUser = await User.findById(req.query.user);
         if (selectedUser) {
+          // Admin can see all notes for a user, including pending/rejected
           selectedUserNotes = await Note.find({ uploadedBy: selectedUser._id })
             .populate("subject")
             .sort({ createdAt: -1 });
@@ -88,6 +110,8 @@ exports.dashboard = async (req, res, next) => {
       totalNotes,
       totalDownloads,
       pendingNotes,
+      approvedNotes,
+      rejectedNotes,
       usersDelta,
       notesDelta,
       downloadsDelta,
@@ -106,6 +130,119 @@ exports.dashboard = async (req, res, next) => {
   }
 };
 
+// ── GET /admin/notes ─── Moderation Queue ─────────────────────────────────────
+exports.moderationQueue = async (req, res, next) => {
+  try {
+    const statusFilter = req.query.status && ["pending", "approved", "rejected"].includes(req.query.status)
+      ? req.query.status
+      : "pending";
+
+    const pendingCount = await Note.countDocuments({ status: "pending" });
+    const approvedCount = await Note.countDocuments({ status: "approved" });
+    const rejectedCount = await Note.countDocuments({ status: "rejected" });
+
+    const notes = await Note.find({ status: statusFilter })
+      .populate("uploadedBy", "username fullName email avatar")
+      .populate("subject", "name")
+      .sort({ createdAt: -1 });
+
+    // Recent audit log entries for this page
+    const recentLogs = await AuditLog.find({
+      action: { $in: ["ADMIN_APPROVED_NOTE", "ADMIN_REJECTED_NOTE", "ADMIN_DELETED_NOTE"] }
+    })
+      .populate("adminId", "username fullName")
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    res.render("admin/notes", {
+      pageTitle: "Note Moderation | Admin | SVVV_Notes",
+      metaDescription: "Admin note moderation queue for SVVV_Notes.",
+      notes,
+      statusFilter,
+      pendingCount,
+      approvedCount,
+      rejectedCount,
+      recentLogs,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── POST /admin/notes/:id/approve ─────────────────────────────────────────────
+exports.approveNote = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      req.flash("error", "Invalid note ID format.");
+      return res.redirect("/admin/notes");
+    }
+    const note = await Note.findById(id);
+    if (!note) {
+      req.flash("error", "Note not found.");
+      return res.redirect("/admin/notes");
+    }
+
+    note.status = "approved";
+    note.isVerified = true;
+    note.verifiedBy = req.user._id;
+    note.verifiedAt = new Date();
+    note.rejectionReason = null;
+    await note.save();
+
+    await writeAuditLog(req.user._id, "ADMIN_APPROVED_NOTE", {
+      noteId: note._id,
+      noteTitle: note.title,
+    });
+
+    req.flash("success", `Note "${note.title}" has been approved and is now publicly visible.`);
+    res.redirect("/admin/notes");
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── POST /admin/notes/:id/reject ──────────────────────────────────────────────
+exports.rejectNote = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      req.flash("error", "Invalid note ID format.");
+      return res.redirect("/admin/notes");
+    }
+    const note = await Note.findById(id);
+    if (!note) {
+      req.flash("error", "Note not found.");
+      return res.redirect("/admin/notes");
+    }
+
+    // Sanitize rejection reason — plain text only, no HTML
+    const rawReason = typeof req.body.rejectionReason === "string"
+      ? req.body.rejectionReason.trim().slice(0, 500)
+      : "";
+    const rejectionReason = rawReason || "This note did not meet our content guidelines.";
+
+    note.status = "rejected";
+    note.isVerified = false;
+    note.verifiedBy = req.user._id;
+    note.verifiedAt = new Date();
+    note.rejectionReason = rejectionReason;
+    await note.save();
+
+    await writeAuditLog(req.user._id, "ADMIN_REJECTED_NOTE", {
+      noteId: note._id,
+      noteTitle: note.title,
+      rejectionReason,
+    });
+
+    req.flash("success", `Note "${note.title}" has been rejected.`);
+    res.redirect("/admin/notes");
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ── POST /admin/users/:id/toggle-admin ────────────────────────────────────────
 exports.toggleAdmin = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -113,7 +250,7 @@ exports.toggleAdmin = async (req, res, next) => {
       req.flash("error", "Invalid user ID format.");
       return res.redirect("/admin/dashboard");
     }
-    
+
     // Prevent self-demotion
     if (req.user._id.toString() === id) {
       req.flash("error", "You cannot toggle your own admin status.");
@@ -128,6 +265,12 @@ exports.toggleAdmin = async (req, res, next) => {
 
     user.isAdmin = !user.isAdmin;
     await user.save();
+
+    await writeAuditLog(req.user._id, "ADMIN_TOGGLED_ADMIN", {
+      userId: user._id,
+      targetUsername: user.username,
+    });
+
     req.flash("success", `Role updated for ${user.username}.`);
     res.redirect(`/admin/dashboard?user=${id}`);
   } catch (error) {
@@ -135,6 +278,7 @@ exports.toggleAdmin = async (req, res, next) => {
   }
 };
 
+// ── POST /admin/users/:id/delete ──────────────────────────────────────────────
 exports.deleteUser = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -162,6 +306,11 @@ exports.deleteUser = async (req, res, next) => {
       await note.deleteOne();
     }
 
+    await writeAuditLog(req.user._id, "ADMIN_DELETED_USER", {
+      userId: user._id,
+      targetUsername: user.username,
+    });
+
     await user.deleteOne();
     req.flash("success", `User ${user.username} and all their uploaded notes have been deleted.`);
     res.redirect("/admin/dashboard");
@@ -170,6 +319,8 @@ exports.deleteUser = async (req, res, next) => {
   }
 };
 
+// ── POST /admin/notes/:id/toggle-verify (legacy — kept for backward compat) ───
+// Now maps to approve if not verified, reject if verified.
 exports.toggleVerifyNote = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -183,36 +334,67 @@ exports.toggleVerifyNote = async (req, res, next) => {
       return res.redirect("/admin/dashboard");
     }
 
-    note.isVerified = !note.isVerified;
+    if (note.status === "approved") {
+      // Toggle back to pending
+      note.status = "pending";
+      note.isVerified = false;
+      note.verifiedBy = null;
+      note.verifiedAt = null;
+    } else {
+      // Approve it
+      note.status = "approved";
+      note.isVerified = true;
+      note.verifiedBy = req.user._id;
+      note.verifiedAt = new Date();
+      note.rejectionReason = null;
+    }
     await note.save();
-    req.flash("success", `Verification status updated for "${note.title}".`);
+
+    await writeAuditLog(req.user._id, note.status === "approved" ? "ADMIN_APPROVED_NOTE" : "ADMIN_REJECTED_NOTE", {
+      noteId: note._id,
+      noteTitle: note.title,
+    });
+
+    req.flash("success", `Status updated for "${note.title}" → ${note.status}.`);
     res.redirect(`/admin/dashboard?user=${note.uploadedBy}`);
   } catch (error) {
     next(error);
   }
 };
 
+// ── POST /admin/notes/:id/delete ──────────────────────────────────────────────
 exports.deleteNote = async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
       req.flash("error", "Invalid note ID format.");
-      return res.redirect("/admin/dashboard");
+      return res.redirect("/admin/notes");
     }
     const note = await Note.findById(id);
     if (!note) {
       req.flash("error", "Note not found.");
-      return res.redirect("/admin/dashboard");
+      return res.redirect("/admin/notes");
     }
 
     const userId = note.uploadedBy;
+    const noteTitle = note.title;
+
+    await writeAuditLog(req.user._id, "ADMIN_DELETED_NOTE", {
+      noteId: note._id,
+      noteTitle,
+    });
+
     await removeStoredFile(note.fileUrl);
     await note.deleteOne();
-    
+
     req.flash("success", "Note deleted successfully.");
+    // Redirect back to whichever page sent the request
+    const referer = req.headers.referer || "";
+    if (referer.includes("/admin/notes")) {
+      return res.redirect("/admin/notes");
+    }
     res.redirect(`/admin/dashboard?user=${userId}`);
   } catch (error) {
     next(error);
   }
 };
-

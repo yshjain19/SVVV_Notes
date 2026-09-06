@@ -3,6 +3,7 @@ const User = require("../models/user");
 const Note = require("../models/note");
 const { sendWelcomeEmail, sendOTPEmail, sendPasswordResetEmail, getBaseUrl } = require("../utils/emailService");
 const crypto = require("crypto");
+const { isBlockedEmailDomain, logBlockedDomainAttempt } = require("../utils/emailDomainBlock");
 
 const RESERVED_USERNAMES = [
   "admin",
@@ -27,6 +28,13 @@ exports.renderRegister = (req, res) =>
 exports.register = async (req, res, next) => {
   const { username, fullName, email, password, course, semester, gender } = req.body;
   const cleanUsername = (username || "").toLowerCase().trim();
+
+  // Block registration for restricted email domains
+  if (isBlockedEmailDomain(email)) {
+    logBlockedDomainAttempt(email, "register");
+    req.flash("error", "Registration is not available for this email address.");
+    return res.redirect("/register");
+  }
 
   if (RESERVED_USERNAMES.includes(cleanUsername)) {
     req.flash("error", "This username is reserved. Please choose a different username.");
@@ -112,6 +120,14 @@ exports.renderLogin = (req, res) =>
     metaDescription: "Sign in to your SVVV_Notes account to upload notes, rate study materials, and access campus academic resources.",
   });
 exports.login = async (req, res, next) => {
+  // Block login for restricted email domains (defense-in-depth, also checked in OAuth)
+  if (req.user && isBlockedEmailDomain(req.user.email)) {
+    logBlockedDomainAttempt(req.user.email, "login");
+    await new Promise((resolve) => req.logout(() => resolve()));
+    req.flash("error", "Unable to sign in with this email address.");
+    return res.redirect("/login");
+  }
+
   // Check if email is verified (allow admin to bypass if needed)
   if (!req.user.isEmailVerified && !req.user.isAdmin) {
     const user = req.user;
@@ -189,8 +205,15 @@ exports.profile = async (req, res) => {
         status: 404,
         message: "This student profile could not be found.",
       });
-  // Profile contributions newest-first gives the user a useful public timeline.
-  const notes = await Note.find({ uploadedBy: user._id })
+  // Profile owner sees all their notes (including pending/rejected) with status.
+  // Public visitors only see approved notes.
+  const isOwner = req.isAuthenticated() && req.user && req.user._id.toString() === user._id.toString();
+  const isAdminViewer = req.isAuthenticated() && req.user && req.user.isAdmin;
+  const noteFilter = (isOwner || isAdminViewer)
+    ? { uploadedBy: user._id }
+    : { uploadedBy: user._id, status: "approved" };
+
+  const notes = await Note.find(noteFilter)
     .populate("uploadedBy")
     .populate("subject")
     .sort({ createdAt: -1 });
@@ -199,6 +222,7 @@ exports.profile = async (req, res) => {
     metaDescription: `View study notes and academic contributions shared by ${user.fullName || user.username} on SVVV_Notes.`,
     user,
     notes,
+    isOwner,
   });
 };
 
@@ -294,6 +318,13 @@ exports.sendOTP = async (req, res, next) => {
     if (!email) {
       req.flash("error", "Please provide a valid email address.");
       return res.redirect("/verify-otp");
+    }
+
+    // Block OTP for restricted domains
+    if (isBlockedEmailDomain(email)) {
+      logBlockedDomainAttempt(email, "send-otp");
+      req.flash("error", "Unable to send verification code to this email address.");
+      return res.redirect("/register");
     }
 
     const user = await User.findOne({ email });
@@ -432,6 +463,14 @@ exports.sendPasswordReset = async (req, res, next) => {
 
     if (!email) {
       req.flash("error", "Email is required.");
+      return res.redirect("/forgot-password");
+    }
+
+    // Block password reset for restricted domains
+    if (isBlockedEmailDomain(email)) {
+      logBlockedDomainAttempt(email, "password-reset");
+      // Generic message — do not reveal domain is blocked
+      req.flash("error", "Unable to process password reset for this email address.");
       return res.redirect("/forgot-password");
     }
 

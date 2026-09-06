@@ -3,6 +3,7 @@ const LocalStrategy = require("passport-local");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const User = require("../models/user");
 const { sendWelcomeEmail } = require("../utils/emailService");
+const { isBlockedEmailDomain, logBlockedDomainAttempt } = require("../utils/emailDomainBlock");
 
 const RESERVED_USERNAMES = [
   "admin",
@@ -72,6 +73,15 @@ passport.use(
           profile.emails && profile.emails[0]
             ? profile.emails[0].value.toLowerCase().trim()
             : null;
+
+        // Block sign-in/sign-up for restricted email domains.
+        if (email && isBlockedEmailDomain(email)) {
+          logBlockedDomainAttempt(email, "google-oauth");
+          return done(null, false, {
+            message: "This email address cannot be used with this service.",
+          });
+        }
+
         const photoUrl =
           profile.photos && profile.photos[0] ? profile.photos[0].value : null;
         const displayName =

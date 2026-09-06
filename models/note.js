@@ -60,10 +60,40 @@ const noteSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    // ── Moderation status ──────────────────────────────────────────────────────
+    // "pending"  → newly uploaded, awaiting admin review — NOT publicly visible
+    // "approved" → reviewed and approved by admin — publicly visible
+    // "rejected" → reviewed and rejected by admin — NOT publicly visible
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+      index: true,
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    verifiedAt: {
+      type: Date,
+      default: null,
+    },
+    rejectionReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null,
+    },
+
+    // ── Legacy field — kept for backward compatibility ─────────────────────────
+    // This is now derived from status; do not use isVerified for access control.
     isVerified: {
       type: Boolean,
       default: false,
     },
+
     upvotes: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -83,7 +113,9 @@ noteSchema.index({
   semester: "text",
 });
 
-noteSchema.index({ isVerified: 1, course: 1, semester: 1 });
+// Primary public visibility index — status + course + semester for browsing queries
+noteSchema.index({ status: 1, course: 1, semester: 1 });
+noteSchema.index({ status: 1, createdAt: -1 });
 noteSchema.index({ uploadedBy: 1 });
 noteSchema.index({ subject: 1 });
 

@@ -12,6 +12,8 @@ const users = require("../controllers/users");
 const {
   isLoggedIn,
   isProfileOwner,
+  loginLimiter,
+  registerLimiter,
   sendOtpLimiter,
   verifyOtpLimiter,
   passwordResetRequestLimiter,
@@ -22,7 +24,7 @@ const {
 router
   .route("/register")
   .get(users.renderRegister)
-  .post(catchAsync(users.register));
+  .post(registerLimiter, catchAsync(users.register));
 
   
 const regenerateSession = (req, res, next) => {
@@ -38,6 +40,7 @@ router
   .route("/login")
   .get(users.renderLogin)
   .post(
+    loginLimiter,
     regenerateSession,
     // Invalid passwords redirect back with a friendly flash message.
     passport.authenticate("local", {

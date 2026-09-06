@@ -57,11 +57,46 @@
         <span class="section-kicker">CONTRIBUTIONS</span>
         <h2 class="mb-0">Notes shared by <%=user.username%></h2>
       </div>
+      <% if (isOwner) { %>
+        <a href="/notes/new" class="btn btn-primary btn-sm"><i class="bi bi-plus me-1"></i>Upload Note</a>
+      <% } %>
     </div>
     <div class="row g-4">
       <%if(notes.length){notes.forEach(note=>{%>
       <div class="col-md-6 col-xl-4">
-        <%-include('../partials/note-card',{note})%>
+        <% if (isOwner && note.status !== 'approved') { %>
+          <!-- Status card for owner's pending/rejected notes -->
+          <div class="card h-100 border-0 shadow-sm" style="border-radius: 14px; position: relative; overflow: hidden;">
+            <% if (note.status === 'pending') { %>
+              <div style="position:absolute; top:0; left:0; right:0; height:3px; background: #F59E0B;"></div>
+            <% } else { %>
+              <div style="position:absolute; top:0; left:0; right:0; height:3px; background: #EF4444;"></div>
+            <% } %>
+            <div class="card-body p-4">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="fw-bold mb-0" style="font-size: 0.95rem; color: #1F2937; line-height: 1.3;">
+                  <a href="/notes/<%= note._id %>" class="text-decoration-none text-dark"><%= note.title %></a>
+                </h5>
+                <% if (note.status === 'pending') { %>
+                  <span class="badge bg-warning text-dark ms-2 flex-shrink-0" style="font-size: 0.68rem; border-radius: 999px;">⏳ Pending</span>
+                <% } else { %>
+                  <span class="badge bg-danger ms-2 flex-shrink-0" style="font-size: 0.68rem; border-radius: 999px;">❌ Rejected</span>
+                <% } %>
+              </div>
+              <% if (note.status === 'pending') { %>
+                <p class="text-muted mb-0" style="font-size: 0.8rem;">Awaiting admin review. Not yet publicly visible.</p>
+              <% } else if (note.rejectionReason) { %>
+                <p class="text-danger mb-0" style="font-size: 0.8rem;"><strong>Reason:</strong> <%= note.rejectionReason %></p>
+                <a href="/notes/<%= note._id %>/edit" class="btn btn-outline-danger btn-sm mt-2" style="font-size: 0.78rem; border-radius: 8px;">Edit &amp; Resubmit</a>
+              <% } else { %>
+                <p class="text-muted mb-0" style="font-size: 0.8rem;">This note was not approved for public listing.</p>
+                <a href="/notes/<%= note._id %>/edit" class="btn btn-outline-danger btn-sm mt-2" style="font-size: 0.78rem; border-radius: 8px;">Edit &amp; Resubmit</a>
+              <% } %>
+            </div>
+          </div>
+        <% } else { %>
+          <%- include('../partials/note-card', {note}) %>
+        <% } %>
       </div>
       <%})}else{%>
       <div class="empty-state">

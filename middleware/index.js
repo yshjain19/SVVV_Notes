@@ -38,15 +38,46 @@ exports.isProfileOwner = (req, res, next) => {
 };
 
 // Restricts route access to administrators only.
+// Returns 403 Forbidden for non-admins — does NOT rely on frontend role values.
+// Server-side check only.
 exports.isAdmin = (req, res, next) => {
-  if (req.user && req.user.isAdmin) {
+  if (req.isAuthenticated() && req.user && req.user.isAdmin === true) {
     return next();
   }
+  // Return 403 for API-style requests
+  if (req.headers["accept"] && req.headers["accept"].includes("application/json")) {
+    return res.status(403).json({ error: "Forbidden: Admin access required." });
+  }
+  // For browser requests, flash and redirect
   req.flash("error", "Access denied. Admin authorization required.");
-  res.redirect("/");
+  return res.status(403).redirect("/");
 };
 
 // ============ RATE LIMITERS FOR AUTH & SENSITIVE ACTIONS ============
+
+// Limit login attempts (10 attempts per 15 minutes per IP)
+exports.loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    req.flash("error", "Too many login attempts. Please wait 15 minutes before trying again.");
+    res.redirect("/login");
+  },
+});
+
+// Limit registration attempts (5 per hour per IP)
+exports.registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    req.flash("error", "Too many registration attempts from this IP. Please try again later.");
+    res.redirect("/register");
+  },
+});
 
 // Limit note uploads (max 30 uploads per hour per IP)
 exports.uploadNoteLimiter = rateLimit({
@@ -123,4 +154,14 @@ exports.createRequestLimiter = rateLimit({
   },
 });
 
-
+// Limit admin moderation actions (60 per hour per IP — prevents automated bulk actions)
+exports.adminActionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    req.flash("error", "Too many admin actions. Please slow down.");
+    res.redirect("/admin/dashboard");
+  },
+});

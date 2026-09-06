@@ -43,12 +43,39 @@
         <aside class="detail-card">
           <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
             <span class="tag mb-0"><%=note.subject && note.subject.name ? note.subject.name : note.subject%></span>
-            <% if (note.isVerified) { %>
-              <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1" style="font-size: 0.75rem; border-radius: 9999px; padding: 4px 10px;" title="Verified Note">
+            <% if (note.status === 'approved') { %>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1" style="font-size: 0.75rem; border-radius: 9999px; padding: 4px 10px;" title="Approved Note">
                 <i class="bi bi-patch-check-fill text-primary"></i> Verified Note
               </span>
             <% } %>
           </div>
+
+          <%# Status banners — only shown to the note owner or admins %>
+          <% if (isOwner || isAdmin) { %>
+            <% if (note.status === 'pending') { %>
+              <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" style="border-radius: 10px; font-size: 0.88rem; border: none; background: #FFFBEB;">
+                <i class="bi bi-hourglass-split mt-1 flex-shrink-0" style="color: #D97706;"></i>
+                <div>
+                  <strong>Awaiting Admin Review</strong><br>
+                  <span class="text-secondary">This note is pending verification. It is not yet publicly visible. You'll be able to see it on your profile once approved.</span>
+                </div>
+              </div>
+            <% } else if (note.status === 'rejected') { %>
+              <div class="alert alert-danger d-flex align-items-start gap-2 mb-3" style="border-radius: 10px; font-size: 0.88rem; border: none; background: #FEF2F2;">
+                <i class="bi bi-x-circle-fill mt-1 flex-shrink-0" style="color: #DC2626;"></i>
+                <div>
+                  <strong>Note Rejected</strong><br>
+                  <span class="text-secondary">This note was not approved for public listing.</span>
+                  <% if (note.rejectionReason) { %>
+                    <div class="mt-2 p-2 rounded" style="background: rgba(220,38,38,0.08); color: #B91C1C; font-size: 0.82rem;">
+                      <strong>Reason:</strong> <%= note.rejectionReason %>
+                    </div>
+                  <% } %>
+                  <div class="mt-2" style="font-size: 0.8rem;">You may <a href="/notes/<%= note._id %>/edit" class="text-danger fw-semibold">edit and resubmit</a> the note for re-review.</div>
+                </div>
+              </div>
+            <% } %>
+          <% } %>
           <h1><%=note.title%></h1>
           <p class="detail-description"><%=note.description%></p>
           <div class="meta-list">

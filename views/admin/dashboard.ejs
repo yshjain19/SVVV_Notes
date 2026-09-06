@@ -48,14 +48,16 @@
       </div>
       <!-- Pending Notes -->
       <div class="col-sm-6 col-lg-3">
-        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Pending Notes</span>
-            <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-list-task"></i></span>
+        <a href="/admin/notes" class="text-decoration-none">
+          <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff; transition: box-shadow 0.18s;" onmouseover="this.style.boxShadow='0 4px 18px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow=''">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+              <span class="text-secondary fw-semibold" style="font-size: 0.85rem; color: #6B7280;">Pending Review</span>
+              <span class="text-secondary" style="font-size: 1.2rem;"><i class="bi bi-list-task"></i></span>
+            </div>
+            <h2 class="mb-2 fw-bold <%= pendingNotes > 0 ? 'text-danger' : '' %>" style="font-size: 2.2rem;"><%= pendingNotes %></h2>
+            <span class="fw-semibold text-primary" style="font-size: 0.78rem;">Click to review →</span>
           </div>
-          <h2 class="mb-2 fw-bold <%= pendingNotes > 0 ? 'text-danger' : '' %>" style="font-size: 2.2rem;"><%= pendingNotes %></h2>
-          <span class="fw-semibold text-secondary" style="font-size: 0.78rem; color: #9CA3AF;">Awaiting review</span>
-        </div>
+        </a>
       </div>
     </div>
 
@@ -131,10 +133,10 @@
         </div>
       </div>
 
-      <!-- Doughnut Chart: Note Verification (col-lg-4) -->
+      <!-- Doughnut Chart: Note Status (col-lg-4) -->
       <div class="col-lg-4">
         <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: #ffffff;">
-          <h3 class="fw-bold mb-4" style="font-size: 1.15rem; color: #1F2937;">Note Verification</h3>
+          <h3 class="fw-bold mb-4" style="font-size: 1.15rem; color: #1F2937;">Note Moderation Status</h3>
           <div style="position: relative; height: 180px; margin: 0 auto 20px;">
             <canvas id="verificationChart" 
                     data-verified="<%= verifiedCount %>" 
@@ -144,13 +146,16 @@
           <!-- Custom legends -->
           <div class="d-flex justify-content-center gap-4 mt-2">
             <div class="d-flex align-items-center gap-2">
-              <span style="display: inline-block; width: 20px; height: 8px; background: #4F46E5; border-radius: 4px;"></span>
-              <span style="font-size: 0.8rem; color: #4B5563; font-weight: 600;">Verified (<%= verifiedCount %>)</span>
+              <span style="display: inline-block; width: 20px; height: 8px; background: #10B981; border-radius: 4px;"></span>
+              <span style="font-size: 0.8rem; color: #4B5563; font-weight: 600;">Approved (<%= verifiedCount %>)</span>
             </div>
             <div class="d-flex align-items-center gap-2">
-              <span style="display: inline-block; width: 20px; height: 8px; background: #E5E7EB; border-radius: 4px;"></span>
-              <span style="font-size: 0.8rem; color: #4B5563; font-weight: 600;">Unverified (<%= unverifiedCount %>)</span>
+              <span style="display: inline-block; width: 20px; height: 8px; background: #F59E0B; border-radius: 4px;"></span>
+              <span style="font-size: 0.8rem; color: #4B5563; font-weight: 600;">Pending/Rejected (<%= unverifiedCount %>)</span>
             </div>
+          </div>
+          <div class="mt-3 text-center">
+            <a href="/admin/notes" class="btn btn-sm btn-outline-primary" style="border-radius: 999px; font-size: 0.8rem;">Open Moderation Queue →</a>
           </div>
         </div>
       </div>
@@ -300,17 +305,25 @@
                             <td><%= note.subject?.name || note.subject %></td>
                             <td class="text-center"><%= note.downloadCount %></td>
                             <td class="text-center">
-                              <span class="badge <%= note.isVerified ? 'bg-success' : 'bg-warning text-dark' %>" style="font-size: 0.65rem;">
-                                <%= note.isVerified ? 'Verified' : 'Pending' %>
+                              <span class="badge <%= note.status === 'approved' ? 'bg-success' : note.status === 'rejected' ? 'bg-danger' : 'bg-warning text-dark' %>" style="font-size: 0.65rem;">
+                                <%= note.status === 'approved' ? 'Approved' : note.status === 'rejected' ? 'Rejected' : 'Pending' %>
                               </span>
                             </td>
                             <td class="text-end">
                               <div class="d-flex justify-content-end gap-2">
-                                <form action="/admin/notes/<%= note._id %>/toggle-verify" method="POST">
-                                  <button class="btn btn-xs btn-outline-secondary" style="font-size: 0.7rem; padding: 2px 6px;" title="<%= note.isVerified ? 'Unverify' : 'Verify' %>">
-                                    <i class="bi <%= note.isVerified ? 'bi-x-circle' : 'bi-check-circle' %>"></i>
-                                  </button>
-                                </form>
+                                <% if (note.status !== 'approved') { %>
+                                  <form action="/admin/notes/<%= note._id %>/approve" method="POST">
+                                    <button class="btn btn-xs btn-outline-success" style="font-size: 0.7rem; padding: 2px 6px;" title="Approve Note">
+                                      <i class="bi bi-check-circle"></i>
+                                    </button>
+                                  </form>
+                                <% } else { %>
+                                  <form action="/admin/notes/<%= note._id %>/toggle-verify" method="POST">
+                                    <button class="btn btn-xs btn-outline-warning" style="font-size: 0.7rem; padding: 2px 6px;" title="Move back to Pending">
+                                      <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                  </form>
+                                <% } %>
                                 <form action="/admin/notes/<%= note._id %>/delete" method="POST" data-confirm="Are you sure you want to delete note '<%= note.title %>' permanently?">
                                   <button class="btn btn-xs btn-outline-danger" style="font-size: 0.7rem; padding: 2px 6px;" title="Delete Note">
                                     <i class="bi bi-trash"></i>
@@ -349,10 +362,10 @@
       new Chart(ctx.getContext('2d'), {
         type: 'doughnut',
         data: {
-          labels: hasData ? ['Verified', 'Unverified'] : ['No Notes'],
+          labels: hasData ? ['Approved', 'Pending / Rejected'] : ['No Notes'],
           datasets: [{
             data: hasData ? [verified, unverified] : [1],
-            backgroundColor: hasData ? ['#4F46E5', '#E5E7EB'] : ['#E5E7EB'],
+            backgroundColor: hasData ? ['#10B981', '#F59E0B'] : ['#E5E7EB'],
             borderWidth: 0,
             hoverOffset: hasData ? 4 : 0
           }]
