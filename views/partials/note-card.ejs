@@ -2,16 +2,18 @@
   <div class="d-flex align-items-start gap-3">
     <div class="pdf-icon"><i class="bi bi-file-earmark-pdf-fill"></i></div>
     <div class="flex-grow-1 min-w-0">
-      <div class="d-flex justify-content-between align-items-center gap-2">
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <span class="tag"><%= note.subject && note.subject.name ? note.subject.name : note.subject %></span>
+      <div class="d-flex justify-content-between align-items-center gap-2 min-w-0 w-100">
+        <div class="d-flex align-items-center gap-1 flex-wrap min-w-0" style="max-width: calc(100% - 68px);">
+          <span class="tag" title="<%= note.subject && note.subject.name ? note.subject.name : note.subject %>">
+            <%= note.subject && note.subject.name ? note.subject.name : note.subject %>
+          </span>
           <% if (note.isVerified) { %>
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-flex align-items-center gap-1" style="font-size: 0.68rem; border-radius: 9999px; padding: 2px 7px;" title="Verified Note">
               <i class="bi bi-patch-check-fill text-primary"></i> Verified
             </span>
           <% } %>
         </div>
-        <span class="small text-secondary text-nowrap">
+        <span class="small text-secondary text-nowrap flex-shrink-0" style="font-size: 0.75rem;">
           <i class="bi bi-calendar3 me-1"></i><%= new Date(note.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short' }) %>
         </span>
       </div>
@@ -19,20 +21,20 @@
         <a href="/notes/<%= note._id %>"><%= note.title %></a>
       </h3>
       <p class="note-summary"><%= note.description %></p>
-      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-auto pt-2 w-100">
         <% if (note.course) { %>
-        <div class="small text-secondary">
+        <div class="small text-secondary text-nowrap d-inline-flex align-items-center gap-1" style="font-size: 0.78rem;">
           <i class="bi bi-book me-1"></i><%= note.course %>
         </div>
         <% } %>
         <% if (note.uploadedBy) { %>
-        <div class="small text-secondary d-inline-flex align-items-center gap-1">
-          <i class="bi bi-person me-1"></i>
-          <a href="/users/<%= note.uploadedBy._id %>" class="text-secondary text-decoration-none fw-medium">
+        <div class="small text-secondary d-inline-flex align-items-center gap-1 ms-auto" style="font-size: 0.78rem;">
+          <i class="bi bi-person me-1 flex-shrink-0"></i>
+          <a href="/users/<%= note.uploadedBy._id %>" class="text-secondary text-decoration-none fw-medium text-nowrap" title="<%= note.uploadedBy.fullName || note.uploadedBy.username %>">
             <%= note.uploadedBy.fullName || note.uploadedBy.username %>
           </a>
           <% if (note.uploadedBy.isAdmin) { %>
-            <i class="bi bi-patch-check-fill text-primary" title="Verified Admin" style="font-size: 0.85em;"></i>
+            <i class="bi bi-patch-check-fill text-primary flex-shrink-0" title="Verified Admin" style="font-size: 0.85em;"></i>
           <% } %>
         </div>
         <% } %>

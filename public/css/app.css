@@ -1234,6 +1234,7 @@ a {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
   height: 100%;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
   box-shadow: var(--shadow-sm);
@@ -1272,10 +1273,11 @@ a {
   border-radius: 20px;
   padding: 3px 10px;
   display: inline-block;
-  max-width: 100%;
+  max-width: 135px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  vertical-align: middle;
 }
 .note-title {
   font-size: clamp(0.92rem, 1vw + 0.3rem, 1.02rem);

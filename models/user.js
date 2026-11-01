@@ -69,4 +69,8 @@ userSchema.plugin(passportLocalMongoose, {
     });
   },
 });
+
+userSchema.index({ createdAt: -1 });
+userSchema.index({ isAdmin: 1, createdAt: -1 });
+
 module.exports = mongoose.model("User", userSchema);

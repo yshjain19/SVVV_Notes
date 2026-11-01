@@ -51,6 +51,31 @@
             <p style="font-size:0.9rem;">All <%= statusFilter %> notes have been processed.</p>
           </div>
         <% } else { %>
+          <div class="p-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="position-relative flex-grow-1" style="max-width: 380px;">
+              <i class="bi bi-search position-absolute top-50 translate-middle-y text-secondary" style="left: 14px; pointer-events: none; z-index: 2;"></i>
+              <input 
+                type="text" 
+                id="adminNotesSearchInput" 
+                class="form-control rounded-pill ps-5 pe-5" 
+                placeholder="Filter by title, subject, student name..." 
+                autocomplete="off"
+                style="font-size: 0.85rem; height: 38px; background: var(--card-bg-elevated, var(--card-bg)); border-color: var(--border); color: var(--text-primary);"
+              />
+              <button 
+                type="button" 
+                id="clearAdminNotesSearch" 
+                class="btn btn-sm text-secondary position-absolute top-50 translate-middle-y end-0 me-2 border-0 bg-transparent d-none" 
+                title="Clear filter"
+                style="z-index: 2;"
+              >
+                <i class="bi bi-x-circle-fill"></i>
+              </button>
+            </div>
+            <div class="small text-secondary fw-medium" id="adminNotesCountDisplay">
+              Showing <%= notes.length %> <%= statusFilter %> notes
+            </div>
+          </div>
           <div class="table-responsive">
             <table class="table align-middle mb-0" style="font-size:0.88rem;">
               <thead class="table-light">
@@ -65,8 +90,14 @@
                 </tr>
               </thead>
               <tbody>
+                <tr id="noNotesMatchRow" class="d-none">
+                  <td colspan="7" class="text-center py-5 text-muted">
+                    <i class="bi bi-search mb-2 d-block" style="font-size: 2rem; opacity: 0.35;"></i>
+                    <p class="mb-0">No notes found matching "<span id="notesSearchQueryDisplay"></span>"</p>
+                  </td>
+                </tr>
                 <% notes.forEach(note => { %>
-                  <tr class="note-row border-bottom">
+                  <tr class="note-row border-bottom" data-search-term="<%= (note.title + ' ' + (note.subject && note.subject.name ? note.subject.name : '') + ' ' + (note.uploadedBy ? (note.uploadedBy.fullName || '') + ' ' + note.uploadedBy.username : '') + ' ' + (note.course || '') + ' sem ' + (note.semester || '')).toLowerCase() %>">
                     <td class="px-4 py-3">
                       <div class="fw-bold text-dark" style="max-width:200px;">
                         <%= note.title %>
@@ -269,4 +300,68 @@
       if (!window.confirm(form.dataset.confirm)) e.preventDefault();
     });
   });
+
+  // Real-time Notes Queue Search Filtering
+  const notesSearchInput = document.getElementById('adminNotesSearchInput');
+  const clearNotesBtn = document.getElementById('clearAdminNotesSearch');
+  const notesCountDisplay = document.getElementById('adminNotesCountDisplay');
+  const noNotesMatchRow = document.getElementById('noNotesMatchRow');
+  const notesQueryDisplay = document.getElementById('notesSearchQueryDisplay');
+  const noteRows = document.querySelectorAll('.note-row');
+  const totalNotesCount = noteRows.length;
+
+  function filterNotesQueue() {
+    if (!notesSearchInput) return;
+    const query = notesSearchInput.value.toLowerCase().trim();
+    let matched = 0;
+
+    if (clearNotesBtn) {
+      if (query) {
+        clearNotesBtn.classList.remove('d-none');
+      } else {
+        clearNotesBtn.classList.add('d-none');
+      }
+    }
+
+    noteRows.forEach(row => {
+      const searchTerm = row.getAttribute('data-search-term');
+      if (!query || (searchTerm && searchTerm.includes(query))) {
+        row.style.display = '';
+        matched++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    if (notesCountDisplay) {
+      notesCountDisplay.textContent = query ? `Showing ${matched} of ${totalNotesCount} notes` : `Showing ${totalNotesCount} <%= statusFilter %> notes`;
+    }
+
+    if (noNotesMatchRow) {
+      if (matched === 0 && query) {
+        noNotesMatchRow.classList.remove('d-none');
+        if (notesQueryDisplay) notesQueryDisplay.textContent = query;
+      } else {
+        noNotesMatchRow.classList.add('d-none');
+      }
+    }
+  }
+
+  if (notesSearchInput) {
+    notesSearchInput.addEventListener('input', filterNotesQueue);
+    notesSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        notesSearchInput.value = '';
+        filterNotesQueue();
+      }
+    });
+  }
+
+  if (clearNotesBtn) {
+    clearNotesBtn.addEventListener('click', () => {
+      notesSearchInput.value = '';
+      notesSearchInput.focus();
+      filterNotesQueue();
+    });
+  }
 </script>

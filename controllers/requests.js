@@ -3,6 +3,7 @@ const NoteRequest = require("../models/noteRequest");
 const Note = require("../models/note");
 const Subject = require("../models/subject");
 const { broadcastNoteRequest } = require("../utils/emailService");
+const cache = require("../utils/cache");
 
 exports.index = async (req, res, next) => {
   try {
@@ -35,19 +36,35 @@ exports.index = async (req, res, next) => {
       ];
     }
 
-    const [requests, totalMatchingCount, totalOpenCount, totalFulfilledCount] = await Promise.all([
-      NoteRequest.find(filter)
-        .select("title subject course semester description requestedBy status fulfilledWith createdAt")
-        .populate("requestedBy", "username fullName avatar")
-        .populate("fulfilledWith", "title fileUrl")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      NoteRequest.countDocuments(filter),
-      NoteRequest.countDocuments({ status: "Open" }),
-      NoteRequest.countDocuments({ status: "Fulfilled" }),
-    ]);
+    // Cache global open/fulfilled counts for 60s to avoid 2 unindexed counts on every page hit
+    const { totalOpenCount, totalFulfilledCount } = await cache.wrap("requests:status_counts", 60, async () => {
+      const [openCount, fulfilledCount] = await Promise.all([
+        NoteRequest.countDocuments({ status: "Open" }),
+        NoteRequest.countDocuments({ status: "Fulfilled" }),
+      ]);
+      return { totalOpenCount: openCount, totalFulfilledCount: fulfilledCount };
+    });
+
+    const isDefaultQuery = !rawQ && !rawSemester && !rawCourse && rawStatus === "all" && page === 1;
+
+    const fetchRequestsData = async () => {
+      const [requestsList, count] = await Promise.all([
+        NoteRequest.find(filter)
+          .select("title subject course semester description requestedBy status fulfilledWith createdAt")
+          .populate("requestedBy", "username fullName avatar")
+          .populate("fulfilledWith", "title fileUrl")
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        NoteRequest.countDocuments(filter),
+      ]);
+      return { requests: requestsList, totalMatchingCount: count };
+    };
+
+    const { requests, totalMatchingCount } = isDefaultQuery
+      ? await cache.wrap("requests:default_page1", 60, fetchRequestsData)
+      : await fetchRequestsData();
 
     const totalPages = Math.ceil(totalMatchingCount / limit) || 1;
     const queryDesc = rawQ ? `matching "${rawQ}"` : "";
@@ -115,6 +132,7 @@ exports.create = async (req, res, next) => {
     });
 
     await noteRequest.save();
+    cache.invalidate("requests:*");
 
     // Trigger community email broadcast asynchronously in background
     broadcastNoteRequest(noteRequest, req.user).catch((err) => {
@@ -210,6 +228,7 @@ exports.fulfill = async (req, res, next) => {
         request.fulfilledWith = note._id;
         request.status = "Fulfilled";
         await request.save();
+        cache.invalidate("requests:*");
         req.flash("success", "Awesome! Request marked as fulfilled with the linked note.");
         return res.redirect(`/requests/${request._id}`);
       }
@@ -219,6 +238,7 @@ exports.fulfill = async (req, res, next) => {
     if (isOwner || isAdmin) {
       request.status = request.status === "Fulfilled" ? "Open" : "Fulfilled";
       await request.save();
+      cache.invalidate("requests:*");
       req.flash("success", `Request status updated to "${request.status}".`);
     } else {
       req.flash("error", "You do not have permission to change this request status.");
@@ -253,6 +273,7 @@ exports.destroy = async (req, res, next) => {
     }
 
     await request.deleteOne();
+    cache.invalidate("requests:*");
     req.flash("success", "Note request deleted.");
     res.redirect("/requests");
   } catch (error) {

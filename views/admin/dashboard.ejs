@@ -168,9 +168,28 @@
       <div class="col-lg-5">
         <div class="card admin-card border-0 shadow-sm p-4" style="min-height: 480px;">
           <h3 class="fw-bold mb-3" style="font-size: 1.05rem;">Student Directory</h3>
-          <div class="input-group mb-3">
-            <span class="input-group-text bg-transparent border-end-0 text-secondary"><i class="bi bi-search"></i></span>
-            <input type="text" id="userSearchInput" class="form-control border-start-0" placeholder="Search by name/username..." />
+          <div class="position-relative mb-2">
+            <i class="bi bi-search position-absolute top-50 translate-middle-y text-secondary" style="left: 14px; pointer-events: none; z-index: 2;"></i>
+            <input 
+              type="text" 
+              id="userSearchInput" 
+              class="form-control rounded-pill ps-5 pe-5" 
+              placeholder="Search by name or @username..." 
+              autocomplete="off"
+              style="font-size: 0.88rem; height: 42px; background: var(--card-bg-elevated, var(--card-bg)); border-color: var(--border); color: var(--text-primary);"
+            />
+            <button 
+              type="button" 
+              id="clearUserSearch" 
+              class="btn btn-sm text-secondary position-absolute top-50 translate-middle-y end-0 me-2 border-0 bg-transparent d-none" 
+              title="Clear search"
+              style="z-index: 2;"
+            >
+              <i class="bi bi-x-circle-fill"></i>
+            </button>
+          </div>
+          <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+            <span class="text-secondary small" id="userSearchResultsCount">Showing <%= users.length %> students</span>
           </div>
           <div style="max-height: 350px; overflow-y: auto; padding-right: 5px;">
             <div class="list-group list-group-flush" id="usersListGroup">
@@ -207,6 +226,10 @@
               <% } else { %>
                 <p class="text-muted text-center py-4">No users registered.</p>
               <% } %>
+            </div>
+            <div id="noUsersFoundMsg" class="text-center py-4 text-muted d-none">
+              <i class="bi bi-search mb-2 d-block" style="font-size: 1.8rem; opacity: 0.35;"></i>
+              <p class="mb-0 small">No students found matching "<span id="searchQueryDisplay"></span>"</p>
             </div>
           </div>
         </div>
@@ -400,19 +423,65 @@
 
     // 2. User Directory Search Filtering
     const searchInput = document.getElementById('userSearchInput');
+    const clearBtn = document.getElementById('clearUserSearch');
+    const countDisplay = document.getElementById('userSearchResultsCount');
+    const noUsersMsg = document.getElementById('noUsersFoundMsg');
+    const queryDisplay = document.getElementById('searchQueryDisplay');
     const items = document.querySelectorAll('.user-list-item');
+    const totalCount = items.length;
+
+    function filterUsers() {
+      if (!searchInput) return;
+      const query = searchInput.value.toLowerCase().trim();
+      let matched = 0;
+
+      if (clearBtn) {
+        if (query) {
+          clearBtn.classList.remove('d-none');
+        } else {
+          clearBtn.classList.add('d-none');
+        }
+      }
+
+      items.forEach(item => {
+        const searchContent = item.getAttribute('data-search-term');
+        if (!query || (searchContent && searchContent.includes(query))) {
+          item.style.setProperty('display', 'flex', 'important');
+          matched++;
+        } else {
+          item.style.setProperty('display', 'none', 'important');
+        }
+      });
+
+      if (countDisplay) {
+        countDisplay.textContent = query ? `Showing ${matched} of ${totalCount} students` : `Showing ${totalCount} students`;
+      }
+
+      if (noUsersMsg) {
+        if (matched === 0 && query) {
+          noUsersMsg.classList.remove('d-none');
+          if (queryDisplay) queryDisplay.textContent = query;
+        } else {
+          noUsersMsg.classList.add('d-none');
+        }
+      }
+    }
 
     if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        items.forEach(item => {
-          const searchContent = item.getAttribute('data-search-term');
-          if (searchContent && searchContent.includes(query)) {
-            item.style.setProperty('display', 'flex', 'important');
-          } else {
-            item.style.setProperty('display', 'none', 'important');
-          }
-        });
+      searchInput.addEventListener('input', filterUsers);
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          searchInput.value = '';
+          filterUsers();
+        }
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        searchInput.focus();
+        filterUsers();
       });
     }
   });
