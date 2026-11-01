@@ -11,7 +11,9 @@ const methodOverride = require("method-override");
 const flash = require("connect-flash");
 const ejsMate = require("ejs-mate");
 const helmet = require("helmet");
+const compression = require("compression");
 const rateLimit = require("express-rate-limit");
+const cache = require("./utils/cache");
 
 if (process.env.NODE_ENV !== "production") {
   try {
@@ -31,6 +33,8 @@ const adminRoutes = require("./routes/admin");
 const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false }));
+// Enable HTTP compression (gzip/deflate) to drastically reduce transfer payloads
+app.use(compression());
 
 // Per-route rate limiting is applied in routes/users.js (loginLimiter, registerLimiter).
 // Required for secure cookies when a host terminates HTTPS before Express.
@@ -43,9 +47,15 @@ app.set("views", path.join(__dirname, "views"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride("_method"));
-app.use(express.static(path.join(__dirname, "public")));
+
+// Configure static assets with caching headers for production
+const staticOptions = {
+  maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
+  etag: true,
+};
+app.use(express.static(path.join(__dirname, "public"), staticOptions));
 // Serve locally stored PDFs when Cloudinary credentials are not configured.
-app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "public", "uploads"), staticOptions));
 
 const sessionSecret =
   process.env.SESSION_SECRET ||
@@ -65,8 +75,14 @@ app.use(
     resave: false,
     saveUninitialized: false,
     // Atlas-backed sessions survive a Render/Railway process restart.
+    // touchAfter: 24 * 3600 prevents writing session to MongoDB on every single request unless modified.
     store: process.env.MONGODB_URI
-      ? MongoStore.create({ mongoUrl: process.env.MONGODB_URI, collectionName: "sessions" })
+      ? MongoStore.create({
+          mongoUrl: process.env.MONGODB_URI,
+          collectionName: "sessions",
+          touchAfter: 24 * 3600,
+          ttl: 14 * 24 * 60 * 60,
+        })
       : undefined,
     cookie: {
       httpOnly: true,
@@ -139,49 +155,76 @@ app.get("/", async (req, res, next) => {
     const Note = require("./models/note");
     const Subject = require("./models/subject");
 
-    // Public home page: only show approved notes
-    const latestNotes = await Note.find({ status: "approved" })
-      .populate("uploadedBy")
-      .populate("subject")
-      .sort({ createdAt: -1 })
-      .limit(3);
+    // Fetch homepage content with sub-millisecond in-memory caching and automatic invalidation
+    const homeData = await cache.wrap("home:data", 300, async () => {
+      // Parallel execution of latest approved notes and popular subjects aggregation
+      const [latestNotes, activeSubjectsData] = await Promise.all([
+        Note.find({ status: "approved" })
+          .select("title description course semester createdAt downloadCount isVerified subject uploadedBy")
+          .populate("uploadedBy", "fullName username isAdmin avatar")
+          .populate("subject", "name")
+          .sort({ createdAt: -1 })
+          .limit(3)
+          .lean(),
+        Note.aggregate([
+          { $match: { status: "approved" } },
+          { $group: { _id: "$subject", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 12 },
+        ]),
+      ]);
 
-    // Fetch top 12 active subjects that actually have approved notes
-    const activeSubjectsData = await Note.aggregate([
-      { $match: { status: "approved" } },
-      { $group: { _id: "$subject", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 12 }
-    ]);
-    const activeSubjectIds = activeSubjectsData.map(s => s._id);
-    let activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } });
+      const activeSubjectIds = activeSubjectsData.map((s) => s._id);
+      let activeSubjects = [];
+      if (activeSubjectIds.length > 0) {
+        activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } })
+          .select("name")
+          .lean();
 
-    // Sort activeSubjects by note count descending to keep the most popular ones first
-    activeSubjects.sort((a, b) => {
-      const aCount = activeSubjectsData.find(s => s._id.equals(a._id))?.count || 0;
-      const bCount = activeSubjectsData.find(s => s._id.equals(b._id))?.count || 0;
-      return bCount - aCount;
+        // Sort activeSubjects by note count descending
+        const countMap = new Map();
+        for (const item of activeSubjectsData) {
+          if (item._id) countMap.set(item._id.toString(), item.count);
+        }
+        activeSubjects.sort((a, b) => {
+          const aCount = countMap.get(a._id.toString()) || 0;
+          const bCount = countMap.get(b._id.toString()) || 0;
+          return bCount - aCount;
+        });
+      }
+
+      // Fallback 1: If no subjects have approved notes yet, show available database subjects
+      if (activeSubjects.length === 0) {
+        activeSubjects = await Subject.find({}).select("name").sort({ name: 1 }).limit(12).lean();
+      }
+
+      // Fallback 2: If database is completely empty/unseeded, provide fallback subject list
+      if (activeSubjects.length === 0) {
+        const defaultNames = [
+          "Data Structures",
+          "Operating Systems",
+          "DBMS",
+          "Computer Networks",
+          "Software Engineering",
+          "Web Development",
+          "Java",
+          "Python",
+        ];
+        activeSubjects = defaultNames.map((name) => ({
+          _id: null,
+          name: name,
+        }));
+      }
+
+      return { latestNotes, activeSubjects };
     });
-
-    // Fallback 1: Agar kisi subject me notes nahi hain, toh database me available subjects dikhao
-    if (activeSubjects.length === 0) {
-      activeSubjects = await Subject.find({}).sort({ name: 1 }).limit(12);
-    }
-
-    // Fallback 2: Agar database bilkul khali (unseeded) hai, toh default subjects dikhao
-    if (activeSubjects.length === 0) {
-      const defaultNames = ['Data Structures', 'Operating Systems', 'DBMS', 'Computer Networks', 'Software Engineering', 'Web Development', 'Java', 'Python'];
-      activeSubjects = defaultNames.map(name => ({
-        _id: null,
-        name: name
-      }));
-    }
 
     res.render("home", {
       pageTitle: "SVVV_Notes | Study smarter, together",
-      metaDescription: "Your ultimate hub for SVVV study materials, lecture Notes, semester-wise syllabus, and previous year papers (PYQs). Upload notes and learn together on SVVV_Notes.",
-      latestNotes,
-      activeSubjects,
+      metaDescription:
+        "Your ultimate hub for SVVV study materials, lecture Notes, semester-wise syllabus, and previous year papers (PYQs). Upload notes and learn together on SVVV_Notes.",
+      latestNotes: homeData.latestNotes,
+      activeSubjects: homeData.activeSubjects,
     });
   } catch (error) {
     next(error);
@@ -236,78 +279,81 @@ app.get("/sitemap.xml", async (req, res) => {
     const Note = require("./models/note");
     const User = require("./models/user");
 
-    // Fetch only approved notes and active note uploaders for sitemap
-    const notesPromise = Note.find({ status: "approved" }, "_id title updatedAt createdAt").sort({ updatedAt: -1 }).lean().catch(() => []);
-    const activeUserIdsPromise = Note.distinct("uploadedBy", { status: "approved" }).catch(() => []);
+    const xml = await cache.wrap("sitemap:xml", 1800, async () => {
+      // Fetch only approved notes and active note uploaders for sitemap
+      const notesPromise = Note.find({ status: "approved" }, "_id title updatedAt createdAt").sort({ updatedAt: -1 }).lean().catch(() => []);
+      const activeUserIdsPromise = Note.distinct("uploadedBy", { status: "approved" }).catch(() => []);
 
-    const [notes, activeUserIds] = await Promise.all([notesPromise, activeUserIdsPromise]);
+      const [notes, activeUserIds] = await Promise.all([notesPromise, activeUserIdsPromise]);
 
-    let users = [];
-    if (activeUserIds && activeUserIds.length > 0) {
-      users = await User.find({ _id: { $in: activeUserIds } }, "_id username fullName updatedAt createdAt").lean().catch(() => []);
-    }
+      let users = [];
+      if (activeUserIds && activeUserIds.length > 0) {
+        users = await User.find({ _id: { $in: activeUserIds } }, "_id username fullName updatedAt createdAt").lean().catch(() => []);
+      }
 
-    const now = new Date().toISOString();
+      const now = new Date().toISOString();
 
-    // Static core pages
-    const staticPages = [
-      { loc: `${baseUrl}/`, changefreq: "daily", priority: "1.0", lastmod: now, imageTitle: "SVVV_Notes Official Home" },
-      { loc: `${baseUrl}/notes`, changefreq: "daily", priority: "0.9", lastmod: now, imageTitle: "SVVV_Notes Study Library" },
-      { loc: `${baseUrl}/requests`, changefreq: "daily", priority: "0.8", lastmod: now, imageTitle: "SVVV_Notes Study Requests" },
-      { loc: `${baseUrl}/about`, changefreq: "monthly", priority: "0.6", imageTitle: "About SVVV_Notes" },
-      { loc: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.6", imageTitle: "Contact SVVV_Notes" },
-    ];
+      // Static core pages
+      const staticPages = [
+        { loc: `${baseUrl}/`, changefreq: "daily", priority: "1.0", lastmod: now, imageTitle: "SVVV_Notes Official Home" },
+        { loc: `${baseUrl}/notes`, changefreq: "daily", priority: "0.9", lastmod: now, imageTitle: "SVVV_Notes Study Library" },
+        { loc: `${baseUrl}/requests`, changefreq: "daily", priority: "0.8", lastmod: now, imageTitle: "SVVV_Notes Study Requests" },
+        { loc: `${baseUrl}/about`, changefreq: "monthly", priority: "0.6", imageTitle: "About SVVV_Notes" },
+        { loc: `${baseUrl}/contact`, changefreq: "monthly", priority: "0.6", imageTitle: "Contact SVVV_Notes" },
+      ];
 
-    // Dynamic individual note pages
-    const notePages = (notes || []).map((note) => {
-      const modDate = note.updatedAt || note.createdAt;
-      return {
-        loc: `${baseUrl}/notes/${note._id}`,
-        changefreq: "weekly",
-        priority: "0.8",
-        lastmod: modDate ? new Date(modDate).toISOString() : undefined,
-        imageTitle: note.title ? `${note.title} - SVVV_Notes` : "SVVV Study Note",
-      };
+      // Dynamic individual note pages
+      const notePages = (notes || []).map((note) => {
+        const modDate = note.updatedAt || note.createdAt;
+        return {
+          loc: `${baseUrl}/notes/${note._id}`,
+          changefreq: "weekly",
+          priority: "0.8",
+          lastmod: modDate ? new Date(modDate).toISOString() : undefined,
+          imageTitle: note.title ? `${note.title} - SVVV_Notes` : "SVVV Study Note",
+        };
+      });
+
+      // Dynamic public author profile pages
+      const userPages = (users || []).map((user) => {
+        const modDate = user.updatedAt || user.createdAt;
+        return {
+          loc: `${baseUrl}/users/${user._id}`,
+          changefreq: "weekly",
+          priority: "0.5",
+          lastmod: modDate ? new Date(modDate).toISOString() : undefined,
+          imageTitle: `${user.fullName || user.username || 'Student'} Profile - SVVV_Notes`,
+        };
+      });
+
+      const allPages = [...staticPages, ...notePages, ...userPages];
+
+      let generatedXml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      generatedXml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
+
+      for (const page of allPages) {
+        generatedXml += `  <url>\n`;
+        generatedXml += `    <loc>${escapeXml(page.loc)}</loc>\n`;
+        if (page.lastmod) {
+          generatedXml += `    <lastmod>${page.lastmod}</lastmod>\n`;
+        }
+        if (page.changefreq) {
+          generatedXml += `    <changefreq>${page.changefreq}</changefreq>\n`;
+        }
+        if (page.priority) {
+          generatedXml += `    <priority>${page.priority}</priority>\n`;
+        }
+        generatedXml += `    <image:image>\n`;
+        generatedXml += `      <image:loc>${escapeXml(baseUrl)}/images/logo.png</image:loc>\n`;
+        generatedXml += `      <image:title>${escapeXml(page.imageTitle || "SVVV_Notes")}</image:title>\n`;
+        generatedXml += `      <image:caption>SVVV_Notes student study notes platform</image:caption>\n`;
+        generatedXml += `    </image:image>\n`;
+        generatedXml += `  </url>\n`;
+      }
+
+      generatedXml += `</urlset>\n`;
+      return generatedXml;
     });
-
-    // Dynamic public author profile pages
-    const userPages = (users || []).map((user) => {
-      const modDate = user.updatedAt || user.createdAt;
-      return {
-        loc: `${baseUrl}/users/${user._id}`,
-        changefreq: "weekly",
-        priority: "0.5",
-        lastmod: modDate ? new Date(modDate).toISOString() : undefined,
-        imageTitle: `${user.fullName || user.username || 'Student'} Profile - SVVV_Notes`,
-      };
-    });
-
-    const allPages = [...staticPages, ...notePages, ...userPages];
-
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
-
-    for (const page of allPages) {
-      xml += `  <url>\n`;
-      xml += `    <loc>${escapeXml(page.loc)}</loc>\n`;
-      if (page.lastmod) {
-        xml += `    <lastmod>${page.lastmod}</lastmod>\n`;
-      }
-      if (page.changefreq) {
-        xml += `    <changefreq>${page.changefreq}</changefreq>\n`;
-      }
-      if (page.priority) {
-        xml += `    <priority>${page.priority}</priority>\n`;
-      }
-      xml += `    <image:image>\n`;
-      xml += `      <image:loc>${escapeXml(baseUrl)}/images/logo.png</image:loc>\n`;
-      xml += `      <image:title>${escapeXml(page.imageTitle || "SVVV_Notes")}</image:title>\n`;
-      xml += `      <image:caption>SVVV_Notes student study notes platform</image:caption>\n`;
-      xml += `    </image:image>\n`;
-      xml += `  </url>\n`;
-    }
-
-    xml += `</urlset>\n`;
 
     res.set("Content-Type", "application/xml; charset=utf-8");
     res.set("X-Robots-Tag", "all");
@@ -373,6 +419,8 @@ async function main() {
   const isAtlasConnection = process.env.MONGODB_URI?.startsWith("mongodb+srv://");
 
   await mongoose.connect(process.env.MONGODB_URI, {
+    maxPoolSize: 20,
+    minPoolSize: 2,
     serverSelectionTimeoutMS: 10000,
     socketTimeoutMS: 45000,
     family: 4,
@@ -400,6 +448,21 @@ async function main() {
     console.log(`SVVV_Notes running at http://localhost:${port}`),
   );
 }
+
+// Graceful shutdown handling
+process.on("SIGINT", async () => {
+  try {
+    await mongoose.connection.close();
+  } catch (e) {}
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  try {
+    await mongoose.connection.close();
+  } catch (e) {}
+  process.exit(0);
+});
 
 main()
   .then(() => {

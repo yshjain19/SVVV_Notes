@@ -41,16 +41,20 @@ exports.isProfileOwner = (req, res, next) => {
 // Returns 403 Forbidden for non-admins — does NOT rely on frontend role values.
 // Server-side check only.
 exports.isAdmin = (req, res, next) => {
-  if (req.isAuthenticated() && req.user && req.user.isAdmin === true) {
+  const isAuth = typeof req.isAuthenticated === "function" ? req.isAuthenticated() : Boolean(req.user);
+  if (isAuth && req.user && req.user.isAdmin === true) {
     return next();
   }
   // Return 403 for API-style requests
-  if (req.headers["accept"] && req.headers["accept"].includes("application/json")) {
+  if (req.headers && req.headers["accept"] && req.headers["accept"].includes("application/json")) {
     return res.status(403).json({ error: "Forbidden: Admin access required." });
   }
   // For browser requests, flash and redirect
   req.flash("error", "Access denied. Admin authorization required.");
-  return res.status(403).redirect("/");
+  if (typeof res.status === "function") {
+    return res.status(403).redirect("/");
+  }
+  return res.redirect("/");
 };
 
 // ============ RATE LIMITERS FOR AUTH & SENSITIVE ACTIONS ============

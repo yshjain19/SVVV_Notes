@@ -76,6 +76,7 @@ noteRequestSchema.index({
 });
 
 noteRequestSchema.index({ status: 1, createdAt: -1 });
+noteRequestSchema.index({ status: 1, course: 1, semester: 1, createdAt: -1 });
 noteRequestSchema.index({ course: 1, semester: 1 });
 noteRequestSchema.index({ requestedBy: 1 });
 

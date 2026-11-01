@@ -28,7 +28,7 @@ const downloadLogSchema = new mongoose.Schema(
   }
 );
 
-downloadLogSchema.index({ createdAt: 1 });
-downloadLogSchema.index({ note: 1, createdAt: 1 });
+downloadLogSchema.index({ createdAt: -1 });
+downloadLogSchema.index({ note: 1, createdAt: -1 });
 
 module.exports = mongoose.model("DownloadLog", downloadLogSchema);

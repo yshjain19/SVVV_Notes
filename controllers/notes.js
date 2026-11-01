@@ -4,6 +4,7 @@ const Note = require("../models/note");
 const Subject = require("../models/subject");
 const DownloadLog = require("../models/downloadLog");
 const { cloudinary } = require("../config/cloudinary");
+const cache = require("../utils/cache");
 
 function parseCloudinaryUrl(url) {
   if (!url) return null;
@@ -52,52 +53,73 @@ exports.removeStoredFile = async function removeStoredFile(fileUrl) {
 // This is enforced at the database level — never rely on frontend-only filtering.
 const PUBLIC_FILTER = { status: "approved" };
 
-exports.index = async (req, res) => {
-  const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
-  const rawSemester = typeof req.query.semester === "string" ? req.query.semester.trim() : "";
+exports.index = async (req, res, next) => {
+  try {
+    const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 100) : "";
+    const rawSemester = typeof req.query.semester === "string" ? req.query.semester.trim() : "";
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = 12;
+    const skip = (page - 1) * limit;
 
-  // Always start with the public visibility filter
-  const filter = { ...PUBLIC_FILTER };
+    // Always start with the public visibility filter
+    const filter = { ...PUBLIC_FILTER };
 
-  if (rawSemester) filter.semester = rawSemester;
+    if (rawSemester) filter.semester = rawSemester;
 
-  if (rawQ) {
-    const Subject = require("../models/subject");
-    // Escape all regex special characters to prevent ReDoS and regex injection
-    const escapedQ = rawQ.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (rawQ) {
+      // Escape all regex special characters to prevent ReDoS and regex injection
+      const escapedQ = rawQ.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    // Find subjects matching the escaped query case-insensitively
-    const matchingSubjects = await Subject.find({
-      name: { $regex: escapedQ, $options: "i" }
+      // Find subjects matching the escaped query case-insensitively using lean & select
+      const matchingSubjects = await Subject.find({
+        name: { $regex: escapedQ, $options: "i" },
+      })
+        .select("_id")
+        .lean();
+      const matchingSubjectIds = matchingSubjects.map((s) => s._id);
+
+      // Search by title/description matching query OR subject ID matching matchingSubjectIds
+      filter.$or = [
+        { title: { $regex: escapedQ, $options: "i" } },
+        { description: { $regex: escapedQ, $options: "i" } },
+        { subject: { $in: matchingSubjectIds } },
+      ];
+    }
+
+    // Execute paginated notes query and total count in parallel
+    const [notes, totalNotes] = await Promise.all([
+      Note.find(filter)
+        .select("title description course semester createdAt downloadCount isVerified subject uploadedBy")
+        .populate("uploadedBy", "fullName username isAdmin avatar")
+        .populate("subject", "name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Note.countDocuments(filter),
+    ]);
+
+    const totalPages = Math.ceil(totalNotes / limit) || 1;
+    const queryDesc = rawQ ? `matching "${rawQ}"` : "";
+    const semDesc = rawSemester ? `for Semester ${rawSemester}` : "";
+    const filterDesc = [queryDesc, semDesc].filter(Boolean).join(" ");
+    const metaDescription = filterDesc
+      ? `Explore peer-shared SVVV CSE study notes ${filterDesc}. Download PDFs and lecture materials.`
+      : "Browse student-shared study notes, previous year question papers (PYQs), and lecture summaries for SVVV CSE.";
+
+    res.render("notes/index", {
+      pageTitle: "Browse Notes | SVVV_Notes",
+      metaDescription,
+      notes,
+      q: rawQ,
+      semester: rawSemester,
+      currentPage: page,
+      totalPages,
+      totalNotes,
     });
-    const matchingSubjectIds = matchingSubjects.map(s => s._id);
-
-    // Search by title/description matching query OR subject ID matching matchingSubjectIds
-    filter.$or = [
-      { title: { $regex: escapedQ, $options: "i" } },
-      { description: { $regex: escapedQ, $options: "i" } },
-      { subject: { $in: matchingSubjectIds } }
-    ];
+  } catch (error) {
+    next(error);
   }
-
-  const notes = await Note.find(filter)
-    .populate("uploadedBy")
-    .populate("subject")
-    .sort({ createdAt: -1 });
-  const queryDesc = rawQ ? `matching "${rawQ}"` : "";
-  const semDesc = rawSemester ? `for Semester ${rawSemester}` : "";
-  const filterDesc = [queryDesc, semDesc].filter(Boolean).join(" ");
-  const metaDescription = filterDesc
-    ? `Explore peer-shared SVVV CSE study notes ${filterDesc}. Download PDFs and lecture materials.`
-    : "Browse student-shared study notes, previous year question papers (PYQs), and lecture summaries for SVVV CSE.";
-
-  res.render("notes/index", {
-    pageTitle: "Browse Notes | SVVV_Notes",
-    metaDescription,
-    notes,
-    q: rawQ,
-    semester: rawSemester,
-  });
 };
 
 exports.renderNewForm = (req, res) =>
@@ -151,6 +173,10 @@ exports.create = async (req, res, next) => {
   try {
     await note.save();
 
+    // Invalidate cached home and sitemap data
+    cache.invalidate("home:*");
+    cache.invalidate("sitemap:*");
+
     // If this note was uploaded in response to a community Note Request, link and fulfill the request
     const requestId = req.body.requestId || req.query.requestId;
     if (requestId && mongoose.Types.ObjectId.isValid(requestId)) {
@@ -194,16 +220,23 @@ exports.show = async (req, res) => {
   }
 
   const note = await Note.findById(req.params.id)
-    .populate("uploadedBy")
-    .populate("subject");
+    .populate("uploadedBy", "fullName username isAdmin avatar email")
+    .populate("subject", "name")
+    .lean();
+
   if (!note) {
     req.flash("error", "That note no longer exists.");
     return res.redirect("/notes");
   }
 
   // Determine if the viewer is the uploader or an admin
-  const isOwner = req.isAuthenticated() && req.user && note.uploadedBy &&
-    note.uploadedBy._id.equals(req.user._id);
+  const isOwner =
+    req.isAuthenticated() &&
+    req.user &&
+    note.uploadedBy &&
+    (note.uploadedBy._id
+      ? note.uploadedBy._id.toString() === req.user._id.toString()
+      : note.uploadedBy.toString() === req.user._id.toString());
   const isAdmin = req.isAuthenticated() && req.user && req.user.isAdmin;
 
   // Non-approved notes are only viewable by the uploader or an admin
@@ -234,7 +267,7 @@ exports.renderEditForm = async (req, res) => {
     return res.redirect("/notes");
   }
 
-  const note = await Note.findById(req.params.id).populate("subject");
+  const note = await Note.findById(req.params.id).populate("subject", "name").lean();
   if (!note) {
     req.flash("error", "That note no longer exists.");
     return res.redirect("/notes");
@@ -285,6 +318,8 @@ exports.update = async (req, res, next) => {
 
   try {
     await note.save();
+    cache.invalidate("home:*");
+    cache.invalidate("sitemap:*");
     req.flash("success", "Note updated. It has been re-submitted for admin review and will be visible after approval.");
     res.redirect(`/notes/${note._id}`);
   } catch (error) {
@@ -304,6 +339,8 @@ exports.destroy = async (req, res) => {
   const note = res.locals.note;
   await exports.removeStoredFile(note.fileUrl);
   await note.deleteOne();
+  cache.invalidate("home:*");
+  cache.invalidate("sitemap:*");
   req.flash("success", "Note deleted.");
   res.redirect("/notes");
 };
@@ -314,7 +351,7 @@ exports.download = async (req, res, next) => {
       req.flash("error", "Note not found.");
       return res.redirect("/notes");
     }
-    const note = await Note.findById(req.params.id);
+    const note = await Note.findById(req.params.id).select("uploadedBy status fileUrl downloadCount").lean();
     if (!note) {
       req.flash("error", "Note not found.");
       return res.redirect("/notes");
@@ -322,8 +359,11 @@ exports.download = async (req, res, next) => {
 
     // Only approved notes can be downloaded publicly.
     // The uploader and admins can still download their own pending/rejected notes.
-    const isOwner = req.isAuthenticated() && req.user && note.uploadedBy &&
-      note.uploadedBy.equals(req.user._id);
+    const isOwner =
+      req.isAuthenticated() &&
+      req.user &&
+      note.uploadedBy &&
+      note.uploadedBy.toString() === req.user._id.toString();
     const isAdmin = req.isAuthenticated() && req.user && req.user.isAdmin;
 
     if (note.status !== "approved" && !isOwner && !isAdmin) {
@@ -331,8 +371,8 @@ exports.download = async (req, res, next) => {
       return res.redirect("/notes");
     }
 
-    note.downloadCount = (note.downloadCount || 0) + 1;
-    await note.save();
+    // Atomic increment instead of full document load-validate-save
+    await Note.updateOne({ _id: note._id }, { $inc: { downloadCount: 1 } });
 
     // Log the download event for accurate time-based analytics (7-day delta, etc.)
     try {

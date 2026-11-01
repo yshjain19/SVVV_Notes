@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema(
     isEmailVerified: { type: Boolean, default: false },
     hasReceivedWelcomeEmail: { type: Boolean, default: false },
     // Password Reset
-    passwordResetToken: String,
+    passwordResetToken: { type: String, index: true, sparse: true },
     passwordResetExpiresAt: Date,
   },
   { timestamps: true },

@@ -4,6 +4,7 @@ const Note = require("../models/note");
 const DownloadLog = require("../models/downloadLog");
 const AuditLog = require("../models/auditLog");
 const { removeStoredFile } = require("./notes");
+const cache = require("../utils/cache");
 
 // ── Helper: write an audit log entry ──────────────────────────────────────────
 async function writeAuditLog(adminId, action, { noteId, userId, rejectionReason, noteTitle, targetUsername } = {}) {
@@ -25,28 +26,45 @@ async function writeAuditLog(adminId, action, { noteId, userId, rejectionReason,
 // ── GET /admin/dashboard ──────────────────────────────────────────────────────
 exports.dashboard = async (req, res, next) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalNotes = await Note.countDocuments();
-
-    const totalDownloadsAgg = await Note.aggregate([
-      { $group: { _id: null, total: { $sum: "$downloadCount" } } }
-    ]);
-    const totalDownloads = totalDownloadsAgg[0]?.total || 0;
-
-    // Moderation counts
-    const pendingNotes = await Note.countDocuments({ status: "pending" });
-    const approvedNotes = await Note.countDocuments({ status: "approved" });
-    const rejectedNotes = await Note.countDocuments({ status: "rejected" });
-
-    // Calculate 7-day deltas
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const usersDelta = await User.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
-    const notesDelta = await Note.countDocuments({ createdAt: { $gte: sevenDaysAgo } });
 
-    // Accurate 7-day downloads from individual download event logs
-    const downloadsDelta = await DownloadLog.countDocuments({
-      createdAt: { $gte: sevenDaysAgo },
-    });
+    // Parallelize all metric calculations and eliminate N+1 queries
+    const [
+      totalUsers,
+      totalNotes,
+      totalDownloadsAgg,
+      pendingNotes,
+      approvedNotes,
+      rejectedNotes,
+      usersDelta,
+      notesDelta,
+      downloadsDelta,
+      topNotes,
+      allUsers,
+      noteCountsAgg,
+    ] = await Promise.all([
+      User.countDocuments(),
+      Note.countDocuments(),
+      Note.aggregate([{ $group: { _id: null, total: { $sum: "$downloadCount" } } }]),
+      Note.countDocuments({ status: "pending" }),
+      Note.countDocuments({ status: "approved" }),
+      Note.countDocuments({ status: "rejected" }),
+      User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+      Note.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+      DownloadLog.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+      Note.find({ status: "approved" })
+        .select("title downloadCount subject course semester")
+        .populate("subject", "name")
+        .sort({ downloadCount: -1 })
+        .limit(5)
+        .lean(),
+      User.find({}, "fullName username email isAdmin avatar branch course semester createdAt")
+        .sort({ createdAt: -1 })
+        .lean(),
+      Note.aggregate([{ $group: { _id: "$uploadedBy", count: { $sum: 1 } } }]),
+    ]);
+
+    const totalDownloads = totalDownloadsAgg[0]?.total || 0;
 
     // Traffic metrics (sessions from db, unique downloads, unique IPs)
     let uniqueSessions = 0;
@@ -57,7 +75,6 @@ exports.dashboard = async (req, res, next) => {
     } catch (e) {
       uniqueSessions = Math.round(totalUsers * 1.5) + 3;
     }
-    // Ensure we have at least 1 session if database is loaded
     if (uniqueSessions === 0 && totalUsers > 0) {
       uniqueSessions = totalUsers + 2;
     }
@@ -65,38 +82,33 @@ exports.dashboard = async (req, res, next) => {
     const uniqueDownloads = totalDownloads ? Math.round(totalDownloads * 0.85) : 0;
     const uniqueIps = uniqueSessions ? Math.round(uniqueSessions * 0.95) : 0;
 
-    // Top 5 Most Downloaded Notes (approved only for display)
-    const topNotes = await Note.find({ status: "approved" })
-      .populate("subject")
-      .sort({ downloadCount: -1 })
-      .limit(5);
-
     // Note status chart data
     const verifiedCount = approvedNotes;
     const unverifiedCount = pendingNotes + rejectedNotes;
 
-    const allUsers = await User.find({}).sort({ createdAt: -1 });
-    const users = await Promise.all(
-      allUsers.map(async (u) => {
-        const notesCount = await Note.countDocuments({ uploadedBy: u._id });
-        return {
-          ...u.toObject(),
-          notesCount
-        };
-      })
-    );
+    // Map aggregated note counts to users in O(1) lookup — eliminating N+1 queries
+    const noteCountsMap = new Map();
+    for (const item of noteCountsAgg) {
+      if (item._id) noteCountsMap.set(item._id.toString(), item.count);
+    }
+    const users = allUsers.map((u) => ({
+      ...u,
+      notesCount: noteCountsMap.get(u._id.toString()) || 0,
+    }));
 
     let selectedUser = null;
     let selectedUserNotes = [];
 
     if (req.query.user) {
       if (mongoose.Types.ObjectId.isValid(req.query.user)) {
-        selectedUser = await User.findById(req.query.user);
+        selectedUser = await User.findById(req.query.user, "fullName username email isAdmin avatar branch course semester createdAt").lean();
         if (selectedUser) {
           // Admin can see all notes for a user, including pending/rejected
           selectedUserNotes = await Note.find({ uploadedBy: selectedUser._id })
-            .populate("subject")
-            .sort({ createdAt: -1 });
+            .select("title description status isVerified course semester createdAt downloadCount subject rejectionReason")
+            .populate("subject", "name")
+            .sort({ createdAt: -1 })
+            .lean();
         }
       } else {
         req.flash("error", "Invalid user ID format.");
@@ -123,7 +135,7 @@ exports.dashboard = async (req, res, next) => {
       unverifiedCount,
       users,
       selectedUser,
-      selectedUserNotes
+      selectedUserNotes,
     });
   } catch (error) {
     next(error);
@@ -137,22 +149,26 @@ exports.moderationQueue = async (req, res, next) => {
       ? req.query.status
       : "pending";
 
-    const pendingCount = await Note.countDocuments({ status: "pending" });
-    const approvedCount = await Note.countDocuments({ status: "approved" });
-    const rejectedCount = await Note.countDocuments({ status: "rejected" });
-
-    const notes = await Note.find({ status: statusFilter })
-      .populate("uploadedBy", "username fullName email avatar")
-      .populate("subject", "name")
-      .sort({ createdAt: -1 });
-
-    // Recent audit log entries for this page
-    const recentLogs = await AuditLog.find({
-      action: { $in: ["ADMIN_APPROVED_NOTE", "ADMIN_REJECTED_NOTE", "ADMIN_DELETED_NOTE"] }
-    })
-      .populate("adminId", "username fullName")
-      .sort({ createdAt: -1 })
-      .limit(10);
+    // Run queue data and count queries concurrently
+    const [pendingCount, approvedCount, rejectedCount, notes, recentLogs] = await Promise.all([
+      Note.countDocuments({ status: "pending" }),
+      Note.countDocuments({ status: "approved" }),
+      Note.countDocuments({ status: "rejected" }),
+      Note.find({ status: statusFilter })
+        .select("title description course semester createdAt status isVerified rejectionReason fileUrl uploadedBy subject")
+        .populate("uploadedBy", "username fullName email avatar")
+        .populate("subject", "name")
+        .sort({ createdAt: -1 })
+        .lean(),
+      AuditLog.find({
+        action: { $in: ["ADMIN_APPROVED_NOTE", "ADMIN_REJECTED_NOTE", "ADMIN_DELETED_NOTE"] },
+      })
+        .select("action rejectionReason noteTitle targetUsername createdAt adminId")
+        .populate("adminId", "username fullName")
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .lean(),
+    ]);
 
     res.render("admin/notes", {
       pageTitle: "Note Moderation | Admin | SVVV_Notes",
@@ -189,6 +205,10 @@ exports.approveNote = async (req, res, next) => {
     note.verifiedAt = new Date();
     note.rejectionReason = null;
     await note.save();
+
+    // Invalidate cached home and sitemap data
+    cache.invalidate("home:*");
+    cache.invalidate("sitemap:*");
 
     await writeAuditLog(req.user._id, "ADMIN_APPROVED_NOTE", {
       noteId: note._id,
@@ -228,6 +248,10 @@ exports.rejectNote = async (req, res, next) => {
     note.verifiedAt = new Date();
     note.rejectionReason = rejectionReason;
     await note.save();
+
+    // Invalidate cached home and sitemap data
+    cache.invalidate("home:*");
+    cache.invalidate("sitemap:*");
 
     await writeAuditLog(req.user._id, "ADMIN_REJECTED_NOTE", {
       noteId: note._id,
@@ -312,6 +336,8 @@ exports.deleteUser = async (req, res, next) => {
     });
 
     await user.deleteOne();
+    cache.invalidate("home:*");
+    cache.invalidate("sitemap:*");
     req.flash("success", `User ${user.username} and all their uploaded notes have been deleted.`);
     res.redirect("/admin/dashboard");
   } catch (error) {
@@ -350,6 +376,9 @@ exports.toggleVerifyNote = async (req, res, next) => {
     }
     await note.save();
 
+    cache.invalidate("home:*");
+    cache.invalidate("sitemap:*");
+
     await writeAuditLog(req.user._id, note.status === "approved" ? "ADMIN_APPROVED_NOTE" : "ADMIN_REJECTED_NOTE", {
       noteId: note._id,
       noteTitle: note.title,
@@ -386,6 +415,9 @@ exports.deleteNote = async (req, res, next) => {
 
     await removeStoredFile(note.fileUrl);
     await note.deleteOne();
+
+    cache.invalidate("home:*");
+    cache.invalidate("sitemap:*");
 
     req.flash("success", "Note deleted successfully.");
     // Redirect back to whichever page sent the request

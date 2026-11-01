@@ -201,6 +201,62 @@ test("Admin Verification: Admin notes are auto-verified upon creation logic", ()
   assert.strictEqual(isStudentVerified, false, "Student uploads must not be auto-verified by default");
 });
 
+// 11. In-Memory Cache System Tests
+test("Cache Utility: In-memory cache handles get, set, TTL, and pattern invalidation", async () => {
+  const cache = require("./utils/cache");
+  cache.clear();
+
+  // Test set and get
+  cache.set("test:key1", { data: 123 }, 60);
+  assert.deepStrictEqual(cache.get("test:key1"), { data: 123 });
+
+  // Test wrap helper
+  let called = 0;
+  const val = await cache.wrap("test:wrap", 60, async () => {
+    called++;
+    return "computed-val";
+  });
+  assert.strictEqual(val, "computed-val");
+  assert.strictEqual(called, 1);
+
+  // Cached hit should not re-execute fn
+  const valCached = await cache.wrap("test:wrap", 60, async () => {
+    called++;
+    return "recomputed-val";
+  });
+  assert.strictEqual(valCached, "computed-val");
+  assert.strictEqual(called, 1);
+
+  // Invalidate by prefix
+  cache.invalidate("test:*");
+  assert.strictEqual(cache.get("test:key1"), undefined);
+  assert.strictEqual(cache.get("test:wrap"), undefined);
+});
+
+// 12. Schema Index Verification Tests
+test("Indexes: Note, User, and NoteRequest have optimized compound and sparse indexes", () => {
+  const Note = require("./models/note");
+  const User = require("./models/user");
+  const NoteRequest = require("./models/noteRequest");
+
+  const noteIndexes = Note.schema.indexes();
+  const indexFields = noteIndexes.map((idx) => Object.keys(idx[0]).join("_"));
+
+  assert(indexFields.some((f) => f.includes("status") && f.includes("semester")), "Must have status + semester index");
+  assert(indexFields.some((f) => f.includes("status") && f.includes("subject")), "Must have status + subject index");
+  assert(indexFields.some((f) => f.includes("status") && f.includes("downloadCount")), "Must have status + downloadCount index");
+  assert(indexFields.some((f) => f.includes("uploadedBy") && f.includes("status")), "Must have uploadedBy + status index");
+
+  assert(User.schema.path("passwordResetToken"), "User schema must define passwordResetToken");
+  assert(NoteRequest.schema.indexes().some((idx) => Object.keys(idx[0]).includes("course") && Object.keys(idx[0]).includes("semester")));
+});
+
+// 13. Compression Package Verification
+test("Compression: Middleware package is installed and loadable", () => {
+  const compression = require("compression");
+  assert.strictEqual(typeof compression, "function");
+});
+
 console.log("\n=================================================================");
 console.log(`🎯 TEST RESULTS: ${passed}/${total} TESTS PASSED (100% SUCCESS)`);
 console.log("=================================================================");

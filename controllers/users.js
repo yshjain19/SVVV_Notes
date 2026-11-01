@@ -196,7 +196,10 @@ exports.profile = async (req, res) => {
         message: "This student profile could not be found.",
       });
   }
-  const user = await User.findById(req.params.id);
+  const user = await User.findById(
+    req.params.id,
+    "fullName username email avatar branch course semester gender isAdmin createdAt"
+  ).lean();
   if (!user)
     return res
       .status(404)
@@ -214,9 +217,12 @@ exports.profile = async (req, res) => {
     : { uploadedBy: user._id, status: "approved" };
 
   const notes = await Note.find(noteFilter)
-    .populate("uploadedBy")
-    .populate("subject")
-    .sort({ createdAt: -1 });
+    .select("title description status isVerified course semester createdAt downloadCount subject uploadedBy")
+    .populate("uploadedBy", "fullName username isAdmin avatar")
+    .populate("subject", "name")
+    .sort({ createdAt: -1 })
+    .lean();
+
   res.render("users/profile", {
     pageTitle: `${user.fullName || user.username} (@${user.username}) | SVVV_Notes`,
     metaDescription: `View study notes and academic contributions shared by ${user.fullName || user.username} on SVVV_Notes.`,
@@ -231,7 +237,7 @@ exports.renderEditForm = async (req, res) => {
     req.flash("error", "Student profile could not be found.");
     return res.redirect("/notes");
   }
-  const user = await User.findById(req.params.id);
+  const user = await User.findById(req.params.id, "fullName username email avatar branch course semester gender").lean();
   if (!user) {
     req.flash("error", "Student profile could not be found.");
     return res.redirect("/notes");

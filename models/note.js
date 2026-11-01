@@ -113,10 +113,13 @@ noteSchema.index({
   semester: "text",
 });
 
-// Primary public visibility index — status + course + semester for browsing queries
+// Primary public visibility indexes
 noteSchema.index({ status: 1, course: 1, semester: 1 });
+noteSchema.index({ status: 1, semester: 1, createdAt: -1 });
 noteSchema.index({ status: 1, createdAt: -1 });
-noteSchema.index({ uploadedBy: 1 });
+noteSchema.index({ status: 1, subject: 1 });
+noteSchema.index({ status: 1, downloadCount: -1 });
+noteSchema.index({ uploadedBy: 1, status: 1, createdAt: -1 });
 noteSchema.index({ subject: 1 });
 
 module.exports = mongoose.model("Note", noteSchema);

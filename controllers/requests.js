@@ -10,6 +10,9 @@ exports.index = async (req, res, next) => {
     const rawSemester = typeof req.query.semester === "string" ? req.query.semester.trim() : "";
     const rawCourse = typeof req.query.course === "string" ? req.query.course.trim() : "";
     const rawStatus = typeof req.query.status === "string" ? req.query.status.trim() : "all";
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = 12;
+    const skip = (page - 1) * limit;
 
     const filter = {};
 
@@ -32,15 +35,21 @@ exports.index = async (req, res, next) => {
       ];
     }
 
-    const [requests, totalOpenCount, totalFulfilledCount] = await Promise.all([
+    const [requests, totalMatchingCount, totalOpenCount, totalFulfilledCount] = await Promise.all([
       NoteRequest.find(filter)
+        .select("title subject course semester description requestedBy status fulfilledWith createdAt")
         .populate("requestedBy", "username fullName avatar")
         .populate("fulfilledWith", "title fileUrl")
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      NoteRequest.countDocuments(filter),
       NoteRequest.countDocuments({ status: "Open" }),
       NoteRequest.countDocuments({ status: "Fulfilled" }),
     ]);
 
+    const totalPages = Math.ceil(totalMatchingCount / limit) || 1;
     const queryDesc = rawQ ? `matching "${rawQ}"` : "";
     const semDesc = rawSemester ? `for Semester ${rawSemester}` : "";
     const filterDesc = [queryDesc, semDesc].filter(Boolean).join(" ");
@@ -58,6 +67,9 @@ exports.index = async (req, res, next) => {
       status: rawStatus,
       totalOpenCount,
       totalFulfilledCount,
+      currentPage: page,
+      totalPages,
+      totalMatchingCount,
     });
   } catch (error) {
     next(error);
@@ -133,29 +145,35 @@ exports.show = async (req, res, next) => {
 
     const request = await NoteRequest.findById(id)
       .populate("requestedBy", "username fullName avatar email createdAt")
-      .populate("fulfilledWith", "title fileUrl subject course semester");
+      .populate("fulfilledWith", "title fileUrl subject course semester")
+      .lean();
 
     if (!request) {
       req.flash("error", "That note request no longer exists.");
       return res.redirect("/requests");
     }
 
-    // Find any existing notes matching the subject or course/semester to suggest to the requester
+    // Find any existing approved notes matching the subject or course/semester to suggest to the requester
     const escapedSubject = request.subject.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const matchingSubjects = await Subject.find({
       name: { $regex: escapedSubject, $options: "i" },
-    }).select("_id");
+    })
+      .select("_id")
+      .lean();
     const matchingSubjectIds = matchingSubjects.map((s) => s._id);
 
     const relatedNotes = await Note.find({
+      status: "approved",
       $or: [
         { subject: { $in: matchingSubjectIds } },
         { course: request.course, semester: request.semester },
       ],
     })
-      .populate("uploadedBy", "username fullName")
+      .select("title description course semester createdAt downloadCount isVerified subject uploadedBy fileUrl")
+      .populate("uploadedBy", "username fullName isAdmin avatar")
       .populate("subject", "name")
-      .limit(4);
+      .limit(4)
+      .lean();
 
     res.render("requests/show", {
       pageTitle: `Request: ${request.title} | SVVV_Notes`,
