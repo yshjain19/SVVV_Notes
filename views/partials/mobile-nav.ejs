@@ -1,0 +1,36 @@
+<!-- Mobile Bottom Navigation Bar (Smart Phone Optimized) -->
+<nav class="mobile-bottom-nav d-md-none" aria-label="Mobile Navigation">
+  <div class="mobile-bottom-nav-inner">
+    <a href="/" class="mobile-nav-item" data-route="^/$">
+      <i class="bi bi-house-door mobile-nav-icon"></i>
+      <span class="mobile-nav-label">Home</span>
+    </a>
+    <a href="/notes" class="mobile-nav-item" data-route="^/notes($|\?|/([0-9a-fA-F]{24})$)">
+      <i class="bi bi-journal-text mobile-nav-icon"></i>
+      <span class="mobile-nav-label">Notes</span>
+    </a>
+    <a href="/notes/new" class="mobile-nav-item mobile-nav-center" data-route="^/notes/new" aria-label="Upload Note">
+      <div class="mobile-nav-upload-bubble">
+        <i class="bi bi-plus-lg"></i>
+      </div>
+      <span class="mobile-nav-label">Upload</span>
+    </a>
+    <a href="/requests" class="mobile-nav-item" data-route="^/requests">
+      <i class="bi bi-chat-square-dots mobile-nav-icon"></i>
+      <span class="mobile-nav-label">Requests</span>
+    </a>
+    <% if (currentUser) { %>
+      <a href="/users/<%= currentUser._id %>" class="mobile-nav-item" data-route="^/users/">
+        <div class="mobile-nav-avatar">
+          <%= (currentUser.fullName || currentUser.username || 'U').charAt(0).toUpperCase() %>
+        </div>
+        <span class="mobile-nav-label">Profile</span>
+      </a>
+    <% } else { %>
+      <a href="/login" class="mobile-nav-item" data-route="^/(login|register)">
+        <i class="bi bi-person mobile-nav-icon"></i>
+        <span class="mobile-nav-label">Log In</span>
+      </a>
+    <% } %>
+  </div>
+</nav>

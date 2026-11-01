@@ -1,4 +1,4 @@
-<nav class="navbar navbar-expand-lg navbar-light sticky-top nav-glass">
+<nav class="navbar navbar-expand-lg sticky-top nav-glass" id="mainNavbar">
   <div class="container">
     <a class="navbar-brand d-flex align-items-center gap-2" href="/">
       <span class="brand-mark">
@@ -6,17 +6,32 @@
       </span>
       <span>SVVV_<span class="text-primary">Notes</span></span>
     </a>
-    <button
-      class="navbar-toggler border-0 shadow-none p-2"
-      type="button"
-      data-bs-toggle="collapse"
-      data-bs-target="#nav"
-      aria-controls="nav"
-      aria-expanded="false"
-      aria-label="Toggle navigation"
-    >
-      <i class="bi bi-list fs-2 text-dark"></i>
-    </button>
+
+    <!-- Mobile Header Actions (Theme Switcher + Nav Toggler) -->
+    <div class="d-flex align-items-center gap-2 d-lg-none">
+      <button
+        class="theme-toggle-btn"
+        type="button"
+        data-theme-toggle
+        aria-label="Toggle dark/light theme"
+        title="Toggle dark/light theme"
+      >
+        <i class="bi bi-sun-fill theme-icon-sun"></i>
+        <i class="bi bi-moon-stars-fill theme-icon-moon"></i>
+      </button>
+      <button
+        class="navbar-toggler border-0 shadow-none p-2"
+        type="button"
+        data-bs-toggle="collapse"
+        data-bs-target="#nav"
+        aria-controls="nav"
+        aria-expanded="false"
+        aria-label="Toggle navigation"
+      >
+        <i class="bi bi-list fs-2 nav-toggler-icon"></i>
+      </button>
+    </div>
+
     <div class="collapse navbar-collapse" id="nav">
       <ul class="navbar-nav mx-auto gap-lg-1 my-2 my-lg-0">
         <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
@@ -39,6 +54,18 @@
         <% } %>
       </ul>
       <div class="nav-actions d-flex align-items-center gap-2 mt-3 mt-lg-0 pt-2 pt-lg-0 border-top border-lg-0">
+        <!-- Desktop Theme Switcher -->
+        <button
+          class="theme-toggle-btn d-none d-lg-inline-flex me-1"
+          type="button"
+          data-theme-toggle
+          aria-label="Toggle dark/light theme"
+          title="Toggle dark/light theme"
+        >
+          <i class="bi bi-sun-fill theme-icon-sun"></i>
+          <i class="bi bi-moon-stars-fill theme-icon-moon"></i>
+        </button>
+
         <% if (currentUser) { %>
           <a class="btn btn-soft flex-grow-1 flex-lg-grow-0" href="/notes/new">
             <i class="bi bi-cloud-arrow-up me-1"></i> Upload
@@ -49,7 +76,7 @@
             </span>
           </a>
         <% } else { %>
-          <a class="btn btn-link text-dark text-decoration-none px-3 flex-grow-1 flex-lg-grow-0 text-center" href="/login">
+          <a class="btn btn-link nav-login-link text-decoration-none px-3 flex-grow-1 flex-lg-grow-0 text-center" href="/login">
             Log in
           </a>
           <a class="btn btn-primary px-3 flex-grow-1 flex-lg-grow-0 text-center" href="/register">
