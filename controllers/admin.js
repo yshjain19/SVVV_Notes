@@ -28,65 +28,85 @@ exports.dashboard = async (req, res, next) => {
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // Parallelize all metric calculations and eliminate N+1 queries
-    const [
-      totalUsers,
-      totalNotes,
-      totalDownloadsAgg,
-      pendingNotes,
-      approvedNotes,
-      rejectedNotes,
-      usersDelta,
-      notesDelta,
-      downloadsDelta,
-      topNotes,
-      allUsers,
-      noteCountsAgg,
-    ] = await Promise.all([
-      User.countDocuments(),
-      Note.countDocuments(),
-      Note.aggregate([{ $group: { _id: null, total: { $sum: "$downloadCount" } } }]),
-      Note.countDocuments({ status: "pending" }),
-      Note.countDocuments({ status: "approved" }),
-      Note.countDocuments({ status: "rejected" }),
-      User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
-      Note.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
-      DownloadLog.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
-      Note.find({ status: "approved" })
-        .select("title downloadCount subject course semester")
-        .populate("subject", "name")
-        .sort({ downloadCount: -1 })
-        .limit(5)
-        .lean(),
-      User.find({}, "fullName username email isAdmin avatar branch course semester createdAt")
-        .sort({ createdAt: -1 })
-        .lean(),
-      Note.aggregate([{ $group: { _id: "$uploadedBy", count: { $sum: 1 } } }]),
+    // Parallelize and cache core aggregate metrics (1 min TTL)
+    const metrics = await cache.wrap("admin:core_metrics", 60, async () => {
+      const [
+        totalUsers,
+        totalNotes,
+        totalDownloadsAgg,
+        pendingNotes,
+        approvedNotes,
+        rejectedNotes,
+        usersDelta,
+        notesDelta,
+        downloadsDelta,
+        topNotes,
+      ] = await Promise.all([
+        User.countDocuments(),
+        Note.countDocuments(),
+        Note.aggregate([{ $group: { _id: null, total: { $sum: "$downloadCount" } } }]),
+        Note.countDocuments({ status: "pending" }),
+        Note.countDocuments({ status: "approved" }),
+        Note.countDocuments({ status: "rejected" }),
+        User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+        Note.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+        DownloadLog.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
+        Note.find({ status: "approved" })
+          .select("title downloadCount subject course semester")
+          .populate("subject", "name")
+          .sort({ downloadCount: -1 })
+          .limit(5)
+          .lean(),
+      ]);
+
+      const totalDownloads = totalDownloadsAgg[0]?.total || 0;
+
+      let uniqueSessions = 0;
+      try {
+        if (mongoose.connection.db) {
+          uniqueSessions = await mongoose.connection.db.collection("sessions").countDocuments();
+        }
+      } catch (e) {
+        uniqueSessions = Math.round(totalUsers * 1.5) + 3;
+      }
+      if (uniqueSessions === 0 && totalUsers > 0) {
+        uniqueSessions = totalUsers + 2;
+      }
+
+      const uniqueDownloads = totalDownloads ? Math.round(totalDownloads * 0.85) : 0;
+      const uniqueIps = uniqueSessions ? Math.round(uniqueSessions * 0.95) : 0;
+
+      return {
+        totalUsers,
+        totalNotes,
+        totalDownloads,
+        pendingNotes,
+        approvedNotes,
+        rejectedNotes,
+        usersDelta,
+        notesDelta,
+        downloadsDelta,
+        uniqueSessions,
+        uniqueDownloads,
+        uniqueIps,
+        topNotes,
+        verifiedCount: approvedNotes,
+        unverifiedCount: pendingNotes + rejectedNotes,
+      };
+    });
+
+    // Targeted user query for directory (limit 60 most recent users for performance)
+    const allUsers = await User.find({}, "fullName username email isAdmin avatar branch course semester createdAt")
+      .sort({ createdAt: -1 })
+      .limit(60)
+      .lean();
+
+    const userIds = allUsers.map((u) => u._id);
+    const noteCountsAgg = await Note.aggregate([
+      { $match: { uploadedBy: { $in: userIds } } },
+      { $group: { _id: "$uploadedBy", count: { $sum: 1 } } },
     ]);
 
-    const totalDownloads = totalDownloadsAgg[0]?.total || 0;
-
-    // Traffic metrics (sessions from db, unique downloads, unique IPs)
-    let uniqueSessions = 0;
-    try {
-      if (mongoose.connection.db) {
-        uniqueSessions = await mongoose.connection.db.collection("sessions").countDocuments();
-      }
-    } catch (e) {
-      uniqueSessions = Math.round(totalUsers * 1.5) + 3;
-    }
-    if (uniqueSessions === 0 && totalUsers > 0) {
-      uniqueSessions = totalUsers + 2;
-    }
-
-    const uniqueDownloads = totalDownloads ? Math.round(totalDownloads * 0.85) : 0;
-    const uniqueIps = uniqueSessions ? Math.round(uniqueSessions * 0.95) : 0;
-
-    // Note status chart data
-    const verifiedCount = approvedNotes;
-    const unverifiedCount = pendingNotes + rejectedNotes;
-
-    // Map aggregated note counts to users in O(1) lookup — eliminating N+1 queries
     const noteCountsMap = new Map();
     for (const item of noteCountsAgg) {
       if (item._id) noteCountsMap.set(item._id.toString(), item.count);
@@ -118,21 +138,7 @@ exports.dashboard = async (req, res, next) => {
     res.render("admin/dashboard", {
       pageTitle: "Admin Dashboard | SVVV_Notes",
       metaDescription: "Administrative management and platform analytics dashboard for SVVV_Notes.",
-      totalUsers,
-      totalNotes,
-      totalDownloads,
-      pendingNotes,
-      approvedNotes,
-      rejectedNotes,
-      usersDelta,
-      notesDelta,
-      downloadsDelta,
-      uniqueSessions,
-      uniqueDownloads,
-      uniqueIps,
-      topNotes,
-      verifiedCount,
-      unverifiedCount,
+      ...metrics,
       users,
       selectedUser,
       selectedUserNotes,
@@ -206,7 +212,8 @@ exports.approveNote = async (req, res, next) => {
     note.rejectionReason = null;
     await note.save();
 
-    // Invalidate cached home and sitemap data
+    // Invalidate cached home, sitemap, and admin metrics
+    cache.del("admin:core_metrics");
     cache.invalidate("home:*");
     cache.invalidate("sitemap:*");
 
@@ -249,7 +256,8 @@ exports.rejectNote = async (req, res, next) => {
     note.rejectionReason = rejectionReason;
     await note.save();
 
-    // Invalidate cached home and sitemap data
+    // Invalidate cached home, sitemap, and admin metrics
+    cache.del("admin:core_metrics");
     cache.invalidate("home:*");
     cache.invalidate("sitemap:*");
 
@@ -336,6 +344,7 @@ exports.deleteUser = async (req, res, next) => {
     });
 
     await user.deleteOne();
+    cache.del("admin:core_metrics");
     cache.invalidate("home:*");
     cache.invalidate("sitemap:*");
     req.flash("success", `User ${user.username} and all their uploaded notes have been deleted.`);
@@ -376,6 +385,7 @@ exports.toggleVerifyNote = async (req, res, next) => {
     }
     await note.save();
 
+    cache.del("admin:core_metrics");
     cache.invalidate("home:*");
     cache.invalidate("sitemap:*");
 
@@ -416,6 +426,7 @@ exports.deleteNote = async (req, res, next) => {
     await removeStoredFile(note.fileUrl);
     await note.deleteOne();
 
+    cache.del("admin:core_metrics");
     cache.invalidate("home:*");
     cache.invalidate("sitemap:*");
 

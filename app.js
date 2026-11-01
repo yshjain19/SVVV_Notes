@@ -157,8 +157,8 @@ app.get("/", async (req, res, next) => {
 
     // Fetch homepage content with sub-millisecond in-memory caching and automatic invalidation
     const homeData = await cache.wrap("home:data", 300, async () => {
-      // Parallel execution of latest approved notes and popular subjects aggregation
-      const [latestNotes, activeSubjectsData] = await Promise.all([
+      // Parallel execution of latest approved notes and popular subjects aggregation with lookup
+      const [latestNotes, activeSubjectsAgg] = await Promise.all([
         Note.find({ status: "approved" })
           .select("title description course semester createdAt downloadCount isVerified subject uploadedBy")
           .populate("uploadedBy", "fullName username isAdmin avatar")
@@ -171,27 +171,20 @@ app.get("/", async (req, res, next) => {
           { $group: { _id: "$subject", count: { $sum: 1 } } },
           { $sort: { count: -1 } },
           { $limit: 12 },
+          {
+            $lookup: {
+              from: "subjects",
+              localField: "_id",
+              foreignField: "_id",
+              as: "subj",
+            },
+          },
+          { $unwind: "$subj" },
+          { $project: { _id: "$subj._id", name: "$subj.name", count: 1 } },
         ]),
       ]);
 
-      const activeSubjectIds = activeSubjectsData.map((s) => s._id);
-      let activeSubjects = [];
-      if (activeSubjectIds.length > 0) {
-        activeSubjects = await Subject.find({ _id: { $in: activeSubjectIds } })
-          .select("name")
-          .lean();
-
-        // Sort activeSubjects by note count descending
-        const countMap = new Map();
-        for (const item of activeSubjectsData) {
-          if (item._id) countMap.set(item._id.toString(), item.count);
-        }
-        activeSubjects.sort((a, b) => {
-          const aCount = countMap.get(a._id.toString()) || 0;
-          const bCount = countMap.get(b._id.toString()) || 0;
-          return bCount - aCount;
-        });
-      }
+      let activeSubjects = activeSubjectsAgg || [];
 
       // Fallback 1: If no subjects have approved notes yet, show available database subjects
       if (activeSubjects.length === 0) {

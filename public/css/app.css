@@ -443,6 +443,101 @@
   border-color: var(--border) !important;
 }
 
+/* ── Hero Dark Mode Theme Adaptability ── */
+[data-theme="dark"] .hero {
+  background: radial-gradient(circle at 85% 15%, rgba(59, 130, 246, 0.16), transparent 45%),
+              linear-gradient(135deg, #0B0F19 0%, #111827 50%, #0F172A 100%) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+[data-theme="dark"] .hero h1 {
+  color: #F8FAFC !important;
+}
+[data-theme="dark"] .hero h1 span {
+  color: #60A5FA !important;
+}
+[data-theme="dark"] .hero-copy {
+  color: #94A3B8 !important;
+}
+[data-theme="dark"] .hero-strong {
+  color: #F8FAFC !important;
+}
+[data-theme="dark"] .hero-keyword {
+  color: #60A5FA !important;
+}
+[data-theme="dark"] .hero-search {
+  background: var(--card-bg-elevated) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55) !important;
+}
+[data-theme="dark"] .hero-search input {
+  color: #F8FAFC !important;
+}
+[data-theme="dark"] .hero-search input::placeholder {
+  color: #64748B !important;
+}
+[data-theme="dark"] .hero-trust {
+  color: #94A3B8 !important;
+}
+[data-theme="dark"] .hero-trust span {
+  color: #94A3B8 !important;
+}
+[data-theme="dark"] .hero-link-secondary {
+  color: #CBD5E1 !important;
+}
+[data-theme="dark"] .hero-link-secondary:hover {
+  color: #60A5FA !important;
+}
+
+/* ── Admin Dashboard & Moderation Dark Theme ── */
+.admin-section {
+  background: var(--bg);
+  min-height: calc(100vh - 120px);
+}
+.admin-card {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px;
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+[data-theme="dark"] .admin-card {
+  background: var(--card-bg) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45) !important;
+}
+[data-theme="dark"] .admin-card h1,
+[data-theme="dark"] .admin-card h2,
+[data-theme="dark"] .admin-card h3,
+[data-theme="dark"] .admin-card h4,
+[data-theme="dark"] .admin-card h5,
+[data-theme="dark"] .admin-card strong {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .admin-card span.text-secondary {
+  color: var(--text-secondary) !important;
+}
+[data-theme="dark"] .user-list-item {
+  background-color: transparent !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border) !important;
+}
+[data-theme="dark"] .user-list-item:hover {
+  background-color: var(--card-bg-elevated) !important;
+}
+[data-theme="dark"] .user-list-item.bg-primary-light {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  color: #93C5FD !important;
+}
+[data-theme="dark"] .reject-modal {
+  background: var(--card-bg) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .note-row:hover {
+  background-color: var(--card-bg-elevated) !important;
+}
+
 /* ── Staggered Entrance Animation ── */
 @keyframes cardEntrance {
   from {

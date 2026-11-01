@@ -82,22 +82,30 @@ exports.index = async (req, res, next) => {
       filter.$or = [
         { title: { $regex: escapedQ, $options: "i" } },
         { description: { $regex: escapedQ, $options: "i" } },
-        { subject: { $in: matchingSubjectIds } },
+        ...(matchingSubjectIds.length > 0 ? [{ subject: { $in: matchingSubjectIds } }] : []),
       ];
     }
 
-    // Execute paginated notes query and total count in parallel
-    const [notes, totalNotes] = await Promise.all([
-      Note.find(filter)
-        .select("title description course semester createdAt downloadCount isVerified subject uploadedBy")
-        .populate("uploadedBy", "fullName username isAdmin avatar")
-        .populate("subject", "name")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      Note.countDocuments(filter),
-    ]);
+    // Cache default first-page results to serve in < 1ms
+    const isDefaultQuery = !rawQ && !rawSemester && page === 1;
+    const fetchNotesData = async () => {
+      const [notesList, count] = await Promise.all([
+        Note.find(filter)
+          .select("title description course semester createdAt downloadCount isVerified subject uploadedBy")
+          .populate("uploadedBy", "fullName username isAdmin avatar")
+          .populate("subject", "name")
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        Note.countDocuments(filter),
+      ]);
+      return { notes: notesList, totalNotes: count };
+    };
+
+    const { notes, totalNotes } = isDefaultQuery
+      ? await cache.wrap("notes:default_page1", 60, fetchNotesData)
+      : await fetchNotesData();
 
     const totalPages = Math.ceil(totalNotes / limit) || 1;
     const queryDesc = rawQ ? `matching "${rawQ}"` : "";
@@ -173,7 +181,9 @@ exports.create = async (req, res, next) => {
   try {
     await note.save();
 
-    // Invalidate cached home and sitemap data
+    // Invalidate cached home, notes, sitemap, and admin metrics
+    cache.del("admin:core_metrics");
+    cache.invalidate("notes:*");
     cache.invalidate("home:*");
     cache.invalidate("sitemap:*");
 
@@ -318,6 +328,8 @@ exports.update = async (req, res, next) => {
 
   try {
     await note.save();
+    cache.del("admin:core_metrics");
+    cache.invalidate("notes:*");
     cache.invalidate("home:*");
     cache.invalidate("sitemap:*");
     req.flash("success", "Note updated. It has been re-submitted for admin review and will be visible after approval.");
@@ -339,6 +351,8 @@ exports.destroy = async (req, res) => {
   const note = res.locals.note;
   await exports.removeStoredFile(note.fileUrl);
   await note.deleteOne();
+  cache.del("admin:core_metrics");
+  cache.invalidate("notes:*");
   cache.invalidate("home:*");
   cache.invalidate("sitemap:*");
   req.flash("success", "Note deleted.");

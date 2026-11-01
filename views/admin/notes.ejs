@@ -14,7 +14,7 @@
   .audit-row td { font-size: 0.82rem; vertical-align: middle; }
 </style>
 
-<section style="background: #F3F4F6; min-height: 100vh;">
+<section class="admin-section pb-5">
   <!-- Header -->
   <div class="mod-header text-white py-4 mb-5">
     <div class="container">
@@ -42,7 +42,7 @@
   <div class="container pb-5">
 
     <!-- Notes table -->
-    <div class="card border-0 shadow-sm mb-5" style="border-radius:14px;">
+    <div class="card admin-card border-0 shadow-sm mb-5">
       <div class="card-body p-0">
         <% if (notes.length === 0) { %>
           <div class="text-center py-5 text-muted">
@@ -53,8 +53,8 @@
         <% } else { %>
           <div class="table-responsive">
             <table class="table align-middle mb-0" style="font-size:0.88rem;">
-              <thead style="background:#F9FAFB; border-bottom: 2px solid #E5E7EB;">
-                <tr style="font-size:0.75rem; color:#6B7280; text-transform:uppercase; font-weight:700;">
+              <thead class="table-light">
+                <tr style="font-size:0.75rem; text-transform:uppercase; font-weight:700;">
                   <th class="px-4 py-3">Note</th>
                   <th class="py-3">Subject</th>
                   <th class="py-3">Uploaded By</th>
@@ -161,9 +161,9 @@
 
     <!-- Recent Audit Log -->
     <% if (recentLogs.length > 0) { %>
-      <div class="card border-0 shadow-sm" style="border-radius:14px;">
+      <div class="card admin-card border-0 shadow-sm mb-4">
         <div class="card-body">
-          <h3 class="fw-bold mb-3" style="font-size:1.05rem; color:#1F2937;">Recent Moderation Activity</h3>
+          <h3 class="fw-bold mb-3" style="font-size:1.05rem;">Recent Moderation Activity</h3>
           <div class="table-responsive">
             <table class="table mb-0">
               <thead class="table-light">
